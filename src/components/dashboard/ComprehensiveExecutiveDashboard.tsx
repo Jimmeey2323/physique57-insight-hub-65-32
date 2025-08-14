@@ -1,5 +1,4 @@
 
-
 import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -27,6 +26,7 @@ import { ExecutiveMetricCardsGrid } from './ExecutiveMetricCardsGrid';
 import { ExecutiveChartsGrid } from './ExecutiveChartsGrid';
 import { EnhancedExecutiveDataTables } from './EnhancedExecutiveDataTables';
 import { ExecutiveTopPerformersGrid } from './ExecutiveTopPerformersGrid';
+import { ComprehensiveFilterSection } from '@/components/filters/ComprehensiveFilterSection';
 import { SourceDataModal } from '@/components/ui/SourceDataModal';
 import { useGlobalFilters } from '@/contexts/GlobalFiltersContext';
 import { useSalesData } from '@/hooks/useSalesData';
@@ -37,7 +37,14 @@ import { useLeadsData } from '@/hooks/useLeadsData';
 import { useDiscountAnalysis } from '@/hooks/useDiscountAnalysis';
 import { SalesMetricCards } from './SalesMetricCards';
 
-export const ComprehensiveExecutiveDashboard = () => {
+// Memoized components for better performance
+const MemoizedExecutiveMetricCardsGrid = React.memo(ExecutiveMetricCardsGrid);
+const MemoizedExecutiveChartsGrid = React.memo(ExecutiveChartsGrid);
+const MemoizedSalesMetricCards = React.memo(SalesMetricCards);
+const MemoizedEnhancedExecutiveDataTables = React.memo(EnhancedExecutiveDataTables);
+const MemoizedExecutiveTopPerformersGrid = React.memo(ExecutiveTopPerformersGrid);
+
+export const ComprehensiveExecutiveDashboard = React.memo(() => {
   const [showSourceData, setShowSourceData] = useState(false);
   const [activeSection, setActiveSection] = useState('overview');
   const { filters } = useGlobalFilters();
@@ -50,7 +57,7 @@ export const ComprehensiveExecutiveDashboard = () => {
   const { data: leadsData, loading: leadsLoading } = useLeadsData();
   const { data: discountData, loading: discountLoading } = useDiscountAnalysis();
 
-  // Get unique locations for the selector
+  // Get unique locations for the selector - memoized for performance
   const availableLocations = useMemo(() => {
     const locations = new Set<string>();
     
@@ -73,7 +80,7 @@ export const ComprehensiveExecutiveDashboard = () => {
     return Array.from(locations).sort();
   }, [salesData, sessionsData, newClientsData, payrollData]);
 
-  // Get available filter options from data
+  // Get available filter options from data - memoized for performance
   const availableOptions = useMemo(() => {
     const categories = new Set<string>();
     const products = new Set<string>();
@@ -95,7 +102,7 @@ export const ComprehensiveExecutiveDashboard = () => {
     };
   }, [salesData]);
 
-  // Filter data based on current filters
+  // Filter data based on current filters - memoized for performance
   const filteredData = useMemo(() => {
     const applyFilters = (items: any[], locationKey: string, dateKey: string) => {
       return items.filter(item => {
@@ -211,8 +218,18 @@ export const ComprehensiveExecutiveDashboard = () => {
           </div>
         </div>
 
-        {/* Location Selector - now displays as tabs */}
+        {/* Location Selector */}
         <ExecutiveLocationSelector locations={availableLocations} />
+
+        {/* Comprehensive Filter Section - underneath location selector, collapsed by default */}
+        <ComprehensiveFilterSection
+          availableLocations={availableLocations}
+          availableCategories={availableOptions.categories}
+          availableProducts={availableOptions.products}
+          availableSoldBy={availableOptions.soldBy}
+          availablePaymentMethods={availableOptions.paymentMethods}
+          showAdvancedFilters={true}
+        />
 
         {/* Sales Metric Cards - showing actual sales data metrics */}
         <div className="space-y-6">
@@ -220,14 +237,14 @@ export const ComprehensiveExecutiveDashboard = () => {
             <h2 className="text-3xl font-bold text-slate-800 mb-2">Sales Performance Metrics</h2>
             <p className="text-slate-600">Key financial metrics from sales data</p>
           </div>
-          <SalesMetricCards data={filteredData.sales} />
+          <MemoizedSalesMetricCards data={filteredData.sales} />
         </div>
 
         {/* Original Key Performance Metrics */}
-        <ExecutiveMetricCardsGrid data={filteredData} />
+        <MemoizedExecutiveMetricCardsGrid data={filteredData} />
 
         {/* Interactive Charts Section */}
-        <ExecutiveChartsGrid data={filteredData} />
+        <MemoizedExecutiveChartsGrid data={filteredData} />
 
         {/* Main Content Sections */}
         <Card className="bg-white/90 backdrop-blur-sm shadow-2xl border-0 overflow-hidden">
@@ -278,15 +295,15 @@ export const ComprehensiveExecutiveDashboard = () => {
 
               <div className="space-y-6">
                 <TabsContent value="overview" className="space-y-6 mt-0">
-                  <EnhancedExecutiveDataTables data={filteredData} selectedLocation={selectedLocation} />
+                  <MemoizedEnhancedExecutiveDataTables data={filteredData} selectedLocation={selectedLocation} />
                 </TabsContent>
 
                 <TabsContent value="performers" className="space-y-6 mt-0">
-                  <ExecutiveTopPerformersGrid data={filteredData} />
+                  <MemoizedExecutiveTopPerformersGrid data={filteredData} />
                 </TabsContent>
 
                 <TabsContent value="trends" className="space-y-6 mt-0">
-                  <ExecutiveChartsGrid data={filteredData} showTrends={true} />
+                  <MemoizedExecutiveChartsGrid data={filteredData} showTrends={true} />
                 </TabsContent>
 
                 <TabsContent value="insights" className="space-y-6 mt-0">
@@ -427,4 +444,6 @@ export const ComprehensiveExecutiveDashboard = () => {
       `}</style>
     </div>
   );
-};
+});
+
+ComprehensiveExecutiveDashboard.displayName = 'ComprehensiveExecutiveDashboard';
