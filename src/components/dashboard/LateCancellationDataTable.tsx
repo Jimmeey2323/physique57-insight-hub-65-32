@@ -14,28 +14,21 @@ export const LateCancellationDataTable: React.FC<LateCancellationDataTableProps>
   const lateCancellationData = useMemo(() => {
     if (!data || data.length === 0) return [];
 
-    // Filter for late cancellations and format for table
+    // Filter for sessions with late cancellations and format for table
     const lateCancellations = data.filter(session => {
-      const hasLateCancellation = 
-        session.attendanceStatus?.toLowerCase().includes('cancelled') ||
-        session.attendanceStatus?.toLowerCase().includes('late') ||
-        session.bookingStatus?.toLowerCase().includes('cancelled') ||
-        session.bookingStatus?.toLowerCase().includes('late') ||
-        (session.checkedIn === false && session.booked === true);
-      
-      return hasLateCancellation;
+      return session.lateCancelledCount > 0;
     });
 
     return lateCancellations.map(session => ({
       ...session,
-      cancellationType: session.attendanceStatus?.toLowerCase().includes('late') ? 'Late Cancellation' : 'No Show',
-      impactScore: ((session.bookedCount - session.checkedInCount) / session.capacity) * 100
+      cancellationType: session.lateCancelledCount > 0 ? 'Late Cancellation' : 'No Show',
+      impactScore: ((session.lateCancelledCount) / session.capacity) * 100
     }));
   }, [data]);
 
   const columns = [
     {
-      key: 'date' as keyof any,
+      key: 'date' as keyof SessionData,
       header: 'Date',
       render: (value: string) => (
         <div className="flex items-center gap-2">
@@ -45,7 +38,7 @@ export const LateCancellationDataTable: React.FC<LateCancellationDataTableProps>
       )
     },
     {
-      key: 'time' as keyof any,
+      key: 'time' as keyof SessionData,
       header: 'Time',
       render: (value: string) => (
         <div className="flex items-center gap-2">
@@ -55,14 +48,14 @@ export const LateCancellationDataTable: React.FC<LateCancellationDataTableProps>
       )
     },
     {
-      key: 'cleanedClass' as keyof any,
+      key: 'cleanedClass' as keyof SessionData,
       header: 'Class',
       render: (value: string) => (
         <div className="font-medium text-gray-900">{value}</div>
       )
     },
     {
-      key: 'trainerName' as keyof any,
+      key: 'trainerName' as keyof SessionData,
       header: 'Trainer',
       render: (value: string) => (
         <div className="flex items-center gap-2">
@@ -72,7 +65,7 @@ export const LateCancellationDataTable: React.FC<LateCancellationDataTableProps>
       )
     },
     {
-      key: 'location' as keyof any,
+      key: 'location' as keyof SessionData,
       header: 'Location',
       render: (value: string) => (
         <div className="flex items-center gap-2">
@@ -82,17 +75,17 @@ export const LateCancellationDataTable: React.FC<LateCancellationDataTableProps>
       )
     },
     {
-      key: 'cancellationType' as keyof any,
-      header: 'Type',
+      key: 'lateCancelledCount' as keyof SessionData,
+      header: 'Late Cancelled',
       align: 'center' as const,
-      render: (value: string) => (
-        <Badge variant={value === 'Late Cancellation' ? 'destructive' : 'secondary'}>
+      render: (value: number) => (
+        <Badge variant="destructive">
           {value}
         </Badge>
       )
     },
     {
-      key: 'bookedCount' as keyof any,
+      key: 'bookedCount' as keyof SessionData,
       header: 'Booked',
       align: 'center' as const,
       render: (value: number) => (
@@ -103,7 +96,7 @@ export const LateCancellationDataTable: React.FC<LateCancellationDataTableProps>
       )
     },
     {
-      key: 'checkedInCount' as keyof any,
+      key: 'checkedInCount' as keyof SessionData,
       header: 'Attended',
       align: 'center' as const,
       render: (value: number) => (
@@ -111,16 +104,6 @@ export const LateCancellationDataTable: React.FC<LateCancellationDataTableProps>
           <Users className="w-4 h-4 text-green-600" />
           <span className="font-semibold">{value}</span>
         </div>
-      )
-    },
-    {
-      key: 'impactScore' as keyof any,
-      header: 'Impact %',
-      align: 'center' as const,
-      render: (value: number) => (
-        <Badge variant={value > 50 ? 'destructive' : value > 25 ? 'secondary' : 'outline'}>
-          {Math.round(value)}%
-        </Badge>
       )
     }
   ];

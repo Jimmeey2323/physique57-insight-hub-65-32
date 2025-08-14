@@ -28,6 +28,13 @@ export interface SessionData {
   cleanedClass: string;
   fillPercentage?: number;
   revenue?: number;
+  // Additional properties for late cancellation analysis
+  lateCancelled?: number;
+  booked?: number;
+  checkedIn?: number;
+  attendanceStatus?: string;
+  bookingStatus?: string;
+  className?: string;
 }
 
 const GOOGLE_CONFIG = {
@@ -105,6 +112,8 @@ export const useSessionsData = () => {
       const sessionsData: SessionData[] = rows.slice(1).map((row: any[]) => {
         const capacity = parseNumericValue(row[6]);
         const checkedInCount = parseNumericValue(row[7]);
+        const lateCancelledCount = parseNumericValue(row[8]);
+        const bookedCount = parseNumericValue(row[9]);
         const fillPercentage = capacity > 0 ? (checkedInCount / capacity) * 100 : 0;
         
         return {
@@ -116,8 +125,8 @@ export const useSessionsData = () => {
           sessionName: row[5] || '',
           capacity,
           checkedInCount,
-          lateCancelledCount: parseNumericValue(row[8]),
-          bookedCount: parseNumericValue(row[9]),
+          lateCancelledCount,
+          bookedCount,
           complimentaryCount: parseNumericValue(row[10]),
           location: row[11] || '',
           date: row[12] || '',
@@ -133,9 +142,17 @@ export const useSessionsData = () => {
           classType: row[23] || '',
           cleanedClass: row[24] || '',
           fillPercentage,
-          revenue: parseNumericValue(row[15])
+          revenue: parseNumericValue(row[15]),
+          // Map additional fields for late cancellation analysis
+          lateCancelled: lateCancelledCount,
+          booked: bookedCount,
+          checkedIn: checkedInCount,
+          className: row[24] || row[5] || ''
         };
       });
+
+      console.log('Sessions data loaded:', sessionsData.length, 'records');
+      console.log('Sample session with late cancellations:', sessionsData.find(s => s.lateCancelledCount > 0));
 
       setData(sessionsData);
       setError(null);

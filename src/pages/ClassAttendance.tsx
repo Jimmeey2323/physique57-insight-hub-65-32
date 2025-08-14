@@ -53,15 +53,15 @@ const ClassAttendance = () => {
             <div className="text-center space-y-4">
               <div className="inline-flex items-center gap-3 bg-white/10 backdrop-blur-sm rounded-full px-6 py-2 border border-white/20 animate-fade-in-up">
                 <Calendar className="w-5 h-5" />
-                <span className="font-medium">Attendance Analytics</span>
+                <span className="font-medium">Late Cancellation Analytics</span>
               </div>
               
               <h1 className="text-5xl md:text-6xl font-bold bg-gradient-to-r from-white via-indigo-100 to-purple-100 bg-clip-text text-transparent animate-fade-in-up delay-200">
-                Class Attendance
+                Late Cancellations
               </h1>
               
               <p className="text-xl text-indigo-100 max-w-2xl mx-auto leading-relaxed animate-fade-in-up delay-300">
-                Comprehensive class utilization and attendance trend analysis across all sessions
+                Comprehensive late cancellation analysis and trends across all sessions
               </p>
             </div>
           </div>

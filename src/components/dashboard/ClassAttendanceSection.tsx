@@ -92,23 +92,11 @@ export const ClassAttendanceSection: React.FC = () => {
       impactedCapacity: 0
     };
 
-    const lateCancellations = filteredData.filter(session => {
-      const hasLateCancellation = 
-        session.attendanceStatus?.toLowerCase().includes('cancelled') ||
-        session.attendanceStatus?.toLowerCase().includes('late') ||
-        session.bookingStatus?.toLowerCase().includes('cancelled') ||
-        session.bookingStatus?.toLowerCase().includes('late') ||
-        (session.checkedIn === false && session.booked === true);
-      
-      return hasLateCancellation;
-    });
-
+    const sessionsWithLateCancellations = filteredData.filter(session => session.lateCancelledCount > 0);
     const totalSessions = filteredData.length;
-    const totalLateCancellations = lateCancellations.length;
-    const cancellationRate = totalSessions > 0 ? (totalLateCancellations / totalSessions) * 100 : 0;
-    const impactedCapacity = lateCancellations.reduce((sum, session) => 
-      sum + (session.bookedCount - session.checkedInCount), 0
-    );
+    const totalLateCancellations = filteredData.reduce((sum, session) => sum + session.lateCancelledCount, 0);
+    const cancellationRate = totalSessions > 0 ? (sessionsWithLateCancellations.length / totalSessions) * 100 : 0;
+    const impactedCapacity = totalLateCancellations;
 
     return {
       totalSessions,

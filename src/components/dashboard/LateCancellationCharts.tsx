@@ -14,35 +14,30 @@ export const LateCancellationCharts: React.FC<LateCancellationChartsProps> = ({ 
   const chartData = useMemo(() => {
     if (!data || data.length === 0) return null;
 
-    // Filter for late cancellations
+    // Filter for sessions with late cancellations
     const lateCancellations = data.filter(session => {
-      const hasLateCancellation = 
-        session.attendanceStatus?.toLowerCase().includes('cancelled') ||
-        session.attendanceStatus?.toLowerCase().includes('late') ||
-        session.bookingStatus?.toLowerCase().includes('cancelled') ||
-        session.bookingStatus?.toLowerCase().includes('late') ||
-        (session.checkedIn === false && session.booked === true);
-      
-      return hasLateCancellation;
+      return session.lateCancelledCount > 0;
     });
+
+    console.log('Chart data - Late cancellations found:', lateCancellations.length);
 
     // Daily trends
     const dailyTrends = lateCancellations.reduce((acc, session) => {
       const day = session.dayOfWeek || 'Unknown';
-      acc[day] = (acc[day] || 0) + 1;
+      acc[day] = (acc[day] || 0) + session.lateCancelledCount;
       return acc;
     }, {} as Record<string, number>);
 
     const dailyData = Object.entries(dailyTrends).map(([day, count]) => ({ 
       day, 
       count,
-      percentage: ((count / lateCancellations.length) * 100).toFixed(1)
+      percentage: ((count / lateCancellations.reduce((sum, s) => sum + s.lateCancelledCount, 0)) * 100).toFixed(1)
     }));
 
     // Time slot trends
     const timeSlotTrends = lateCancellations.reduce((acc, session) => {
       const time = session.time || 'Unknown';
-      acc[time] = (acc[time] || 0) + 1;
+      acc[time] = (acc[time] || 0) + session.lateCancelledCount;
       return acc;
     }, {} as Record<string, number>);
 
@@ -52,14 +47,14 @@ export const LateCancellationCharts: React.FC<LateCancellationChartsProps> = ({ 
       .map(([time, count]) => ({ 
         time, 
         count,
-        percentage: ((count / lateCancellations.length) * 100).toFixed(1)
+        percentage: ((count / lateCancellations.reduce((sum, s) => sum + s.lateCancelledCount, 0)) * 100).toFixed(1)
       }));
 
     // Monthly trends (simulated from dates)
     const monthlyTrends = lateCancellations.reduce((acc, session) => {
       const date = new Date(session.date);
       const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-      acc[monthKey] = (acc[monthKey] || 0) + 1;
+      acc[monthKey] = (acc[monthKey] || 0) + session.lateCancelledCount;
       return acc;
     }, {} as Record<string, number>);
 
@@ -74,7 +69,7 @@ export const LateCancellationCharts: React.FC<LateCancellationChartsProps> = ({ 
     // Class type breakdown
     const classBreakdown = lateCancellations.reduce((acc, session) => {
       const className = session.cleanedClass || 'Unknown';
-      acc[className] = (acc[className] || 0) + 1;
+      acc[className] = (acc[className] || 0) + session.lateCancelledCount;
       return acc;
     }, {} as Record<string, number>);
 
@@ -84,7 +79,7 @@ export const LateCancellationCharts: React.FC<LateCancellationChartsProps> = ({ 
       .map(([className, count]) => ({ 
         className, 
         count,
-        percentage: ((count / lateCancellations.length) * 100).toFixed(1)
+        percentage: ((count / lateCancellations.reduce((sum, s) => sum + s.lateCancelledCount, 0)) * 100).toFixed(1)
       }));
 
     return {
@@ -92,7 +87,7 @@ export const LateCancellationCharts: React.FC<LateCancellationChartsProps> = ({ 
       timeSlotData,
       monthlyData,
       classData,
-      totalCancellations: lateCancellations.length
+      totalCancellations: lateCancellations.reduce((sum, s) => sum + s.lateCancelledCount, 0)
     };
   }, [data]);
 

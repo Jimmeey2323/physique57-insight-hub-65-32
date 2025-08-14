@@ -28,43 +28,35 @@ export const LateCancellationAnalytics: React.FC<LateCancellationAnalyticsProps>
 
     console.log('Processing late cancellation data...');
     
-    // Filter for late cancellations - assuming we look for status indicators
+    // Filter for sessions with late cancellations using the correct field name
     const lateCancellations = data.filter(session => {
-      // Check various fields that might indicate late cancellation
-      const hasLateCancellation = 
-        session.attendanceStatus?.toLowerCase().includes('cancelled') ||
-        session.attendanceStatus?.toLowerCase().includes('late') ||
-        session.bookingStatus?.toLowerCase().includes('cancelled') ||
-        session.bookingStatus?.toLowerCase().includes('late') ||
-        (session.checkedIn === false && session.booked === true);
-      
-      return hasLateCancellation;
+      return session.lateCancelledCount > 0;
     });
 
     console.log('Found late cancellations:', lateCancellations.length);
 
     const totalSessions = data.length;
-    const totalLateCancellations = lateCancellations.length;
-    const lateCancellationRate = totalSessions > 0 ? (totalLateCancellations / totalSessions) * 100 : 0;
+    const totalLateCancellations = lateCancellations.reduce((sum, session) => sum + session.lateCancelledCount, 0);
+    const lateCancellationRate = totalSessions > 0 ? (lateCancellations.length / totalSessions) * 100 : 0;
 
     // Daily trends
     const dailyTrends = lateCancellations.reduce((acc, session) => {
       const day = session.dayOfWeek || 'Unknown';
-      acc[day] = (acc[day] || 0) + 1;
+      acc[day] = (acc[day] || 0) + session.lateCancelledCount;
       return acc;
     }, {} as Record<string, number>);
 
     // Class trends
     const classTrends = lateCancellations.reduce((acc, session) => {
       const className = session.cleanedClass || session.className || 'Unknown';
-      acc[className] = (acc[className] || 0) + 1;
+      acc[className] = (acc[className] || 0) + session.lateCancelledCount;
       return acc;
     }, {} as Record<string, number>);
 
     // Trainer trends
     const trainerTrends = lateCancellations.reduce((acc, session) => {
       const trainer = session.trainerName || 'Unknown';
-      acc[trainer] = (acc[trainer] || 0) + 1;
+      acc[trainer] = (acc[trainer] || 0) + session.lateCancelledCount;
       return acc;
     }, {} as Record<string, number>);
 
