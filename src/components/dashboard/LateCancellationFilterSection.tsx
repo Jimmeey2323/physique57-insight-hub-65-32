@@ -116,8 +116,8 @@ export const LateCancellationFilterSection: React.FC<LateCancellationFilterSecti
               Date Range
             </label>
             <DatePickerWithRange
-              selected={filters.dateRange}
-              onSelect={updateDateRange}
+              value={filters.dateRange}
+              onChange={updateDateRange}
             />
           </div>
 

@@ -32,7 +32,7 @@ export const FloatingNoteIcon: React.FC<FloatingNoteIconProps> = ({
       </Button>
 
       <AdvancedNoteTaker
-        isOpen={isOpen}
+        isVisible={isOpen}
         onClose={() => setIsOpen(false)}
         tabId={tabId}
       />
