@@ -1,663 +1,382 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { 
-  ChevronDown, 
-  ChevronRight, 
-  Filter,
-  SortAsc,
-  SortDesc,
-  Users,
-  Target,
-  DollarSign,
-  Calendar,
-  Info,
-  Eye,
-  TrendingUp
-} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { OptimizedTable } from '@/components/ui/OptimizedTable';
 import { SessionData } from '@/hooks/useSessionsData';
-import { formatCurrency, formatNumber } from '@/utils/formatters';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { Calendar, Users, TrendingUp, Clock, ArrowUpDown } from 'lucide-react';
 
 interface SessionsGroupedTableProps {
   data: SessionData[];
 }
 
-type ViewType = 
-  | 'uniqueId' 
-  | 'trainer' 
-  | 'classType' 
-  | 'dayOfWeek' 
-  | 'timeSlot' 
-  | 'location' 
-  | 'date' 
-  | 'capacity'
-  | 'classTypeDay'
-  | 'classTypeTime'
-  | 'classTypeDayTime'
-  | 'classTypeDayTimeLocation'
-  | 'classTypeDayTimeLocationTrainer';
-
-type SortField = 'name' | 'occurrences' | 'totalAttendees' | 'avgFillRate' | 'totalRevenue' | 'avgRevenue' | 'classAverage' | 'lateCancellations' | 'complimentaryCount' | 'nonPaidCount';
-type SortDirection = 'asc' | 'desc';
-
 export const SessionsGroupedTable: React.FC<SessionsGroupedTableProps> = ({ data }) => {
-  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
-  const [currentView, setCurrentView] = useState<ViewType>('classTypeDayTimeLocation');
-  const [sortField, setSortField] = useState<SortField>('classAverage');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
-  const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
 
-  // Use the already filtered data passed from parent - no additional filtering needed
-  const filteredData = useMemo(() => {
-    return data; // Data is already filtered by SessionsSection
+  // Group sessions by different criteria
+  const groupedData = useMemo(() => {
+    if (!data || data.length === 0) return { byTrainer: [], byClass: [], byTime: [], byDay: [] };
+
+    // Group by trainer
+    const trainerGroups = data.reduce((acc, session) => {
+      const trainer = session.trainerName || 'Unknown';
+      if (!acc[trainer]) {
+        acc[trainer] = {
+          trainer,
+          totalSessions: 0,
+          totalAttendance: 0,
+          totalCapacity: 0,
+          avgFillRate: 0,
+          sessions: []
+        };
+      }
+      acc[trainer].totalSessions += 1;
+      acc[trainer].totalAttendance += session.checkedInCount || 0;
+      acc[trainer].totalCapacity += session.capacity || 0;
+      acc[trainer].sessions.push(session);
+      return acc;
+    }, {} as Record<string, any>);
+
+    const byTrainer = Object.values(trainerGroups).map((group: any) => ({
+      ...group,
+      avgFillRate: group.totalCapacity > 0 ? (group.totalAttendance / group.totalCapacity) * 100 : 0
+    }));
+
+    // Group by class
+    const classGroups = data.reduce((acc, session) => {
+      const className = session.cleanedClass || 'Unknown';
+      if (!acc[className]) {
+        acc[className] = {
+          className,
+          totalSessions: 0,
+          totalAttendance: 0,
+          totalCapacity: 0,
+          avgFillRate: 0,
+          sessions: []
+        };
+      }
+      acc[className].totalSessions += 1;
+      acc[className].totalAttendance += session.checkedInCount || 0;
+      acc[className].totalCapacity += session.capacity || 0;
+      acc[className].sessions.push(session);
+      return acc;
+    }, {} as Record<string, any>);
+
+    const byClass = Object.values(classGroups).map((group: any) => ({
+      ...group,
+      avgFillRate: group.totalCapacity > 0 ? (group.totalAttendance / group.totalCapacity) * 100 : 0
+    }));
+
+    // Group by time
+    const timeGroups = data.reduce((acc, session) => {
+      const time = session.time || 'Unknown';
+      if (!acc[time]) {
+        acc[time] = {
+          time,
+          totalSessions: 0,
+          totalAttendance: 0,
+          totalCapacity: 0,
+          avgFillRate: 0,
+          sessions: []
+        };
+      }
+      acc[time].totalSessions += 1;
+      acc[time].totalAttendance += session.checkedInCount || 0;
+      acc[time].totalCapacity += session.capacity || 0;
+      acc[time].sessions.push(session);
+      return acc;
+    }, {} as Record<string, any>);
+
+    const byTime = Object.values(timeGroups).map((group: any) => ({
+      ...group,
+      avgFillRate: group.totalCapacity > 0 ? (group.totalAttendance / group.totalCapacity) * 100 : 0
+    }));
+
+    // Group by day
+    const dayGroups = data.reduce((acc, session) => {
+      const day = session.dayOfWeek || 'Unknown';
+      if (!acc[day]) {
+        acc[day] = {
+          day,
+          totalSessions: 0,
+          totalAttendance: 0,
+          totalCapacity: 0,
+          avgFillRate: 0,
+          sessions: []
+        };
+      }
+      acc[day].totalSessions += 1;
+      acc[day].totalAttendance += session.checkedInCount || 0;
+      acc[day].totalCapacity += session.capacity || 0;
+      acc[day].sessions.push(session);
+      return acc;
+    }, {} as Record<string, any>);
+
+    const byDay = Object.values(dayGroups).map((group: any) => ({
+      ...group,
+      avgFillRate: group.totalCapacity > 0 ? (group.totalAttendance / group.totalCapacity) * 100 : 0
+    }));
+
+    return { byTrainer, byClass, byTime, byDay };
   }, [data]);
 
-  const groupedData = useMemo(() => {
-    const groups: Record<string, SessionData[]> = {};
+  const handleSort = (key: string, dataArray: any[]) => {
+    let direction: 'asc' | 'desc' = 'desc';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'desc') {
+      direction = 'asc';
+    }
+    setSortConfig({ key, direction });
     
-    filteredData.forEach(session => {
-      let groupKey: string;
-      
-      switch (currentView) {
-        case 'uniqueId':
-          groupKey = session.uniqueId || 'Unknown';
-          break;
-        case 'trainer':
-          groupKey = session.trainerName || 'Unknown';
-          break;
-        case 'classType':
-          groupKey = session.cleanedClass || 'Unknown';
-          break;
-        case 'dayOfWeek':
-          groupKey = session.dayOfWeek || 'Unknown';
-          break;
-        case 'timeSlot':
-          groupKey = session.time || 'Unknown';
-          break;
-        case 'location':
-          groupKey = session.location || 'Unknown';
-          break;
-        case 'date':
-          groupKey = session.date || 'Unknown';
-          break;
-        case 'capacity':
-          groupKey = `${session.capacity} seats`;
-          break;
-        case 'classTypeDay':
-          groupKey = `${session.cleanedClass || 'Unknown'} | ${session.dayOfWeek || 'Unknown'}`;
-          break;
-        case 'classTypeTime':
-          groupKey = `${session.cleanedClass || 'Unknown'} | ${session.time || 'Unknown'}`;
-          break;
-        case 'classTypeDayTime':
-          groupKey = `${session.cleanedClass || 'Unknown'} | ${session.dayOfWeek || 'Unknown'} | ${session.time || 'Unknown'}`;
-          break;
-        case 'classTypeDayTimeLocation':
-          groupKey = `${session.cleanedClass || 'Unknown'} | ${session.dayOfWeek || 'Unknown'} | ${session.time || 'Unknown'} | ${session.location || 'Unknown'}`;
-          break;
-        case 'classTypeDayTimeLocationTrainer':
-          groupKey = `${session.cleanedClass || 'Unknown'} | ${session.dayOfWeek || 'Unknown'} | ${session.time || 'Unknown'} | ${session.location || 'Unknown'} | ${session.trainerName || 'Unknown'}`;
-          break;
-        default:
-          groupKey = session.uniqueId || 'Unknown';
+    return [...dataArray].sort((a, b) => {
+      if (direction === 'asc') {
+        return a[key] > b[key] ? 1 : -1;
       }
-      
-      if (!groups[groupKey]) {
-        groups[groupKey] = [];
-      }
-      groups[groupKey].push(session);
+      return a[key] < b[key] ? 1 : -1;
     });
+  };
 
-    return groups;
-  }, [filteredData, currentView]);
-
-  const processedGroups = useMemo(() => {
-    return Object.entries(groupedData)
-      .filter(([, sessions]) => sessions.length >= 2) // Filter out groups with less than 2 sessions
-      .map(([groupName, sessions]) => {
-        // Remove duplicate sessions based on unique combination of date and sessionId
-        const uniqueSessions = sessions.filter((session, index, arr) => {
-          return arr.findIndex(s => s.date === session.date && s.sessionId === session.sessionId) === index;
-        });
-
-        const totalAttendees = uniqueSessions.reduce((sum, s) => sum + s.checkedInCount, 0);
-        const totalCapacity = uniqueSessions.reduce((sum, s) => sum + s.capacity, 0);
-        const totalRevenue = uniqueSessions.reduce((sum, s) => sum + s.totalPaid, 0);
-        const totalLateCancellations = uniqueSessions.reduce((sum, s) => sum + s.lateCancelledCount, 0);
-        const totalComplimentary = uniqueSessions.reduce((sum, s) => sum + s.complimentaryCount, 0);
-        const totalNonPaid = uniqueSessions.reduce((sum, s) => sum + s.nonPaidCount, 0);
-        const totalBooked = uniqueSessions.reduce((sum, s) => sum + s.bookedCount, 0);
-        const totalMemberships = uniqueSessions.reduce((sum, s) => sum + s.checkedInsWithMemberships, 0);
-        const totalPackages = uniqueSessions.reduce((sum, s) => sum + s.checkedInsWithPackages, 0);
-        const totalIntroOffers = uniqueSessions.reduce((sum, s) => sum + s.checkedInsWithIntroOffers, 0);
-        const totalSingleClasses = uniqueSessions.reduce((sum, s) => sum + s.checkedInsWithSingleClasses, 0);
-        
-        const avgFillRate = totalCapacity > 0 ? (totalAttendees / totalCapacity) * 100 : 0;
-        const avgRevenue = uniqueSessions.length > 0 ? totalRevenue / uniqueSessions.length : 0;
-        const classAverage = uniqueSessions.length > 0 ? totalAttendees / uniqueSessions.length : 0;
-        const avgLateCancellations = uniqueSessions.length > 0 ? totalLateCancellations / uniqueSessions.length : 0;
-
-        return {
-          name: groupName,
-          sessions: uniqueSessions, // Use deduplicated sessions
-          occurrences: uniqueSessions.length,
-          totalAttendees,
-          totalCapacity,
-          totalBooked,
-          avgFillRate,
-          totalRevenue,
-          avgRevenue,
-          classAverage,
-          lateCancellations: totalLateCancellations,
-          avgLateCancellations,
-          complimentaryCount: totalComplimentary,
-          nonPaidCount: totalNonPaid,
-          totalMemberships,
-          totalPackages,
-          totalIntroOffers,
-          totalSingleClasses
-        };
-      }).sort((a, b) => {
-        const aVal = a[sortField];
-        const bVal = b[sortField];
-        
-        if (typeof aVal === 'string' && typeof bVal === 'string') {
-          return sortDirection === 'asc' 
-            ? aVal.localeCompare(bVal)
-            : bVal.localeCompare(aVal);
-        }
-        
-        return sortDirection === 'asc' 
-          ? (aVal as number) - (bVal as number)
-          : (bVal as number) - (aVal as number);
-      });
-  }, [groupedData, sortField, sortDirection]);
-
-  const toggleGroup = (groupName: string) => {
-    const newExpanded = new Set(expandedGroups);
-    if (newExpanded.has(groupName)) {
-      newExpanded.delete(groupName);
-    } else {
-      newExpanded.add(groupName);
+  const trainerColumns = [
+    {
+      key: 'trainer' as keyof any,
+      header: 'Trainer',
+      render: (value: string) => (
+        <div className="font-medium text-gray-900">{value}</div>
+      )
+    },
+    {
+      key: 'totalSessions' as keyof any,
+      header: 'Total Sessions',
+      align: 'center' as const,
+      render: (value: number) => (
+        <Badge variant="outline" className="bg-blue-50">
+          {value}
+        </Badge>
+      )
+    },
+    {
+      key: 'totalAttendance' as keyof any,
+      header: 'Total Attendance',
+      align: 'center' as const,
+      render: (value: number) => (
+        <div className="flex items-center gap-1">
+          <Users className="w-4 h-4 text-green-600" />
+          <span className="font-semibold">{value}</span>
+        </div>
+      )
+    },
+    {
+      key: 'avgFillRate' as keyof any,
+      header: 'Avg Fill Rate',
+      align: 'center' as const,
+      render: (value: number) => (
+        <div className="flex items-center gap-1">
+          <TrendingUp className="w-4 h-4 text-purple-600" />
+          <span className="font-semibold">{Math.round(value)}%</span>
+        </div>
+      )
     }
-    setExpandedGroups(newExpanded);
-  };
-
-  const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortDirection('desc');
-    }
-  };
-
-  const showDrillDown = (groupName: string) => {
-    setSelectedGroup(groupName);
-  };
-
-  const viewOptions = [
-    { value: 'classTypeDayTimeLocation', label: 'Class + Day + Time + Location', icon: Target },
-    { value: 'classTypeDayTimeLocationTrainer', label: 'Class + Day + Time + Location + Trainer', icon: Target },
-    { value: 'classTypeDayTime', label: 'Class + Day + Time', icon: Target },
-    { value: 'classTypeDay', label: 'Class + Day', icon: Target },
-    { value: 'classTypeTime', label: 'Class + Time', icon: Target },
-    { value: 'uniqueId', label: 'Individual Sessions', icon: Calendar },
-    { value: 'trainer', label: 'By Trainer', icon: Users },
-    { value: 'classType', label: 'By Class Type', icon: Target },
-    { value: 'dayOfWeek', label: 'By Day of Week', icon: Calendar },
-    { value: 'timeSlot', label: 'By Time Slot', icon: Calendar },
-    { value: 'location', label: 'By Location', icon: Calendar },
-    { value: 'date', label: 'By Date', icon: Calendar },
-    { value: 'capacity', label: 'By Capacity', icon: Users }
   ];
 
-  const getDisplayColumns = () => {
-    const columns = [];
-    
-    if (currentView.includes('classType') || currentView === 'classType') {
-      columns.push({ key: 'cleanedClass', label: 'Class Name' });
+  const classColumns = [
+    {
+      key: 'className' as keyof any,
+      header: 'Class Name',
+      render: (value: string) => (
+        <div className="font-medium text-gray-900">{value}</div>
+      )
+    },
+    {
+      key: 'totalSessions' as keyof any,
+      header: 'Total Sessions',
+      align: 'center' as const,
+      render: (value: number) => (
+        <Badge variant="outline" className="bg-orange-50">
+          {value}
+        </Badge>
+      )
+    },
+    {
+      key: 'totalAttendance' as keyof any,
+      header: 'Total Attendance',
+      align: 'center' as const,
+      render: (value: number) => (
+        <div className="flex items-center gap-1">
+          <Users className="w-4 h-4 text-green-600" />
+          <span className="font-semibold">{value}</span>
+        </div>
+      )
+    },
+    {
+      key: 'avgFillRate' as keyof any,
+      header: 'Avg Fill Rate',
+      align: 'center' as const,
+      render: (value: number) => (
+        <div className="flex items-center gap-1">
+          <TrendingUp className="w-4 h-4 text-purple-600" />
+          <span className="font-semibold">{Math.round(value)}%</span>
+        </div>
+      )
     }
-    if (currentView.includes('Day') || currentView === 'dayOfWeek') {
-      columns.push({ key: 'dayOfWeek', label: 'Day' });
-    }
-    if (currentView.includes('Time') || currentView === 'timeSlot') {
-      columns.push({ key: 'time', label: 'Time' });
-    }
-    if (currentView.includes('Location') || currentView === 'location') {
-      columns.push({ key: 'location', label: 'Location' });
-    }
-    if (currentView.includes('Trainer') || currentView === 'trainer') {
-      columns.push({ key: 'trainerName', label: 'Trainer' });
-    }
-    
-    return columns;
-  };
+  ];
 
-  const parseGroupedRowData = (groupName: string) => {
-    const parts = groupName.split(' | ');
-    const columns = getDisplayColumns();
-    const result: Record<string, string> = {};
-    
-    columns.forEach((col, index) => {
-      result[col.key] = parts[index] || '';
-    });
-    
-    return result;
-  };
+  const timeColumns = [
+    {
+      key: 'time' as keyof any,
+      header: 'Time Slot',
+      render: (value: string) => (
+        <div className="flex items-center gap-2">
+          <Clock className="w-4 h-4 text-blue-600" />
+          <span className="font-medium text-gray-900">{value}</span>
+        </div>
+      )
+    },
+    {
+      key: 'totalSessions' as keyof any,
+      header: 'Total Sessions',
+      align: 'center' as const,
+      render: (value: number) => (
+        <Badge variant="outline" className="bg-indigo-50">
+          {value}
+        </Badge>
+      )
+    },
+    {
+      key: 'totalAttendance' as keyof any,
+      header: 'Total Attendance',
+      align: 'center' as const,
+      render: (value: number) => (
+        <div className="flex items-center gap-1">
+          <Users className="w-4 h-4 text-green-600" />
+          <span className="font-semibold">{value}</span>
+        </div>
+      )
+    },
+    {
+      key: 'avgFillRate' as keyof any,
+      header: 'Avg Fill Rate',
+      align: 'center' as const,
+      render: (value: number) => (
+        <div className="flex items-center gap-1">
+          <TrendingUp className="w-4 h-4 text-purple-600" />
+          <span className="font-semibold">{Math.round(value)}%</span>
+        </div>
+      )
+    }
+  ];
+
+  const dayColumns = [
+    {
+      key: 'day' as keyof any,
+      header: 'Day of Week',
+      render: (value: string) => (
+        <div className="flex items-center gap-2">
+          <Calendar className="w-4 h-4 text-green-600" />
+          <span className="font-medium text-gray-900">{value}</span>
+        </div>
+      )
+    },
+    {
+      key: 'totalSessions' as keyof any,
+      header: 'Total Sessions',
+      align: 'center' as const,
+      render: (value: number) => (
+        <Badge variant="outline" className="bg-green-50">
+          {value}
+        </Badge>
+      )
+    },
+    {
+      key: 'totalAttendance' as keyof any,
+      header: 'Total Attendance',
+      align: 'center' as const,
+      render: (value: number) => (
+        <div className="flex items-center gap-1">
+          <Users className="w-4 h-4 text-green-600" />
+          <span className="font-semibold">{value}</span>
+        </div>
+      )
+    },
+    {
+      key: 'avgFillRate' as keyof any,
+      header: 'Avg Fill Rate',
+      align: 'center' as const,
+      render: (value: number) => (
+        <div className="flex items-center gap-1">
+          <TrendingUp className="w-4 h-4 text-purple-600" />
+          <span className="font-semibold">{Math.round(value)}%</span>
+        </div>
+      )
+    }
+  ];
+
+  if (!data || data.length === 0) {
+    return (
+      <Card className="p-6">
+        <CardContent>
+          <div className="text-center py-8">
+            <p className="text-gray-500">No session data available for grouping analysis</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
-    <TooltipProvider>
-      <div id="sessions-grouped-table-container" data-export-container>
-        <Card className="bg-white/90 backdrop-blur-sm shadow-xl border-0 overflow-hidden">
-          <CardHeader className="bg-gradient-to-r from-blue-50 to-purple-50 border-b border-white/20">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-gray-800 flex items-center gap-3">
-                <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center">
-                  <Filter className="w-5 h-5 text-white" />
-                </div>
-                Session Analysis Table
-                <Badge variant="secondary" className="ml-2">
-                  {processedGroups.length} groups • {filteredData.length} sessions
-                </Badge>
-              </CardTitle>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="gap-2 bg-white/80 hover:bg-white">
-                    {viewOptions.find(opt => opt.value === currentView)?.label}
-                    <ChevronDown className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="bg-white shadow-lg border-0">
-                  {viewOptions.map(option => (
-                    <DropdownMenuItem
-                      key={option.value}
-                      onClick={() => setCurrentView(option.value as ViewType)}
-                      className="hover:bg-blue-50"
-                    >
-                      <option.icon className="w-4 h-4 mr-2" />
-                      {option.label}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </CardHeader>
+    <Card className="p-6">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <ArrowUpDown className="w-5 h-5 text-blue-600" />
+          Sessions Analysis - Grouped Data
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <Tabs defaultValue="trainers" className="w-full">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="trainers">By Trainer</TabsTrigger>
+            <TabsTrigger value="classes">By Class</TabsTrigger>
+            <TabsTrigger value="times">By Time</TabsTrigger>
+            <TabsTrigger value="days">By Day</TabsTrigger>
+          </TabsList>
           
-          <CardContent className="p-0">
-            <div className="overflow-auto max-h-[800px] border rounded-lg shadow-sm">
-              <Table className="min-w-full" data-export-table data-table-name="Sessions Grouped Data">
-                <TableHeader className="sticky top-0 bg-gradient-to-r from-gray-50 to-blue-50 z-10">
-                  <TableRow>
-                    <TableHead className="w-80 sticky left-0 bg-gradient-to-r from-gray-50 to-blue-50 z-20 border-r">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleSort('name')}
-                        className="h-6 p-0 font-semibold"
-                      >
-                        Group
-                        {sortField === 'name' && (
-                          sortDirection === 'asc' ? <SortAsc className="ml-1 h-3 w-3" /> : <SortDesc className="ml-1 h-3 w-3" />
-                        )}
-                      </Button>
-                    </TableHead>
-                    {getDisplayColumns().map(col => (
-                      <TableHead key={col.key} className="text-center min-w-28 font-semibold">
-                        {col.label}
-                      </TableHead>
-                    ))}
-                    <TableHead className="text-center min-w-20">
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleSort('occurrences')}
-                            className="h-6 p-0 font-semibold"
-                          >
-                            Sessions
-                            {sortField === 'occurrences' && (
-                              sortDirection === 'asc' ? <SortAsc className="ml-1 h-3 w-3" /> : <SortDesc className="ml-1 h-3 w-3" />
-                            )}
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Number of sessions in this group</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TableHead>
-                    <TableHead className="text-center min-w-28">
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleSort('classAverage')}
-                            className="h-6 p-0 font-semibold"
-                          >
-                            Class Average
-                            {sortField === 'classAverage' && (
-                              sortDirection === 'asc' ? <SortAsc className="ml-1 h-3 w-3" /> : <SortDesc className="ml-1 h-3 w-3" />
-                            )}
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Average attendees per session</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TableHead>
-                    <TableHead className="text-center min-w-24">
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleSort('totalAttendees')}
-                            className="h-6 p-0 font-semibold"
-                          >
-                            Total Attendees
-                            {sortField === 'totalAttendees' && (
-                              sortDirection === 'asc' ? <SortAsc className="ml-1 h-3 w-3" /> : <SortDesc className="ml-1 h-3 w-3" />
-                            )}
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Total number of attendees across all sessions</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TableHead>
-                    <TableHead className="text-center min-w-24">
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleSort('avgFillRate')}
-                            className="h-6 p-0 font-semibold"
-                          >
-                            Fill Rate %
-                            {sortField === 'avgFillRate' && (
-                              sortDirection === 'asc' ? <SortAsc className="ml-1 h-3 w-3" /> : <SortDesc className="ml-1 h-3 w-3" />
-                            )}
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Average capacity utilization percentage</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TableHead>
-                    <TableHead className="text-center min-w-32">
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleSort('totalRevenue')}
-                            className="h-6 p-0 font-semibold"
-                          >
-                            Total Revenue
-                            {sortField === 'totalRevenue' && (
-                              sortDirection === 'asc' ? <SortAsc className="ml-1 h-3 w-3" /> : <SortDesc className="ml-1 h-3 w-3" />
-                            )}
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Total revenue generated by this group</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TableHead>
-                    <TableHead className="text-center min-w-32">
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleSort('avgRevenue')}
-                            className="h-6 p-0 font-semibold"
-                          >
-                            Avg Revenue
-                            {sortField === 'avgRevenue' && (
-                              sortDirection === 'asc' ? <SortAsc className="ml-1 h-3 w-3" /> : <SortDesc className="ml-1 h-3 w-3" />
-                            )}
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Average revenue per session</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TableHead>
-                    <TableHead className="text-center min-w-24">
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleSort('lateCancellations')}
-                            className="h-6 p-0 font-semibold"
-                          >
-                            Late Cancellations
-                            {sortField === 'lateCancellations' && (
-                              sortDirection === 'asc' ? <SortAsc className="ml-1 h-3 w-3" /> : <SortDesc className="ml-1 h-3 w-3" />
-                            )}
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Total late cancellations in this group</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TableHead>
-                    <TableHead className="text-center min-w-24">
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleSort('complimentaryCount')}
-                            className="h-6 p-0 font-semibold"
-                          >
-                            Complimentary
-                            {sortField === 'complimentaryCount' && (
-                              sortDirection === 'asc' ? <SortAsc className="ml-1 h-3 w-3" /> : <SortDesc className="ml-1 h-3 w-3" />
-                            )}
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Total complimentary attendees</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TableHead>
-                    <TableHead className="text-center min-w-24">
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleSort('nonPaidCount')}
-                            className="h-6 p-0 font-semibold"
-                          >
-                            Non-Paid
-                            {sortField === 'nonPaidCount' && (
-                              sortDirection === 'asc' ? <SortAsc className="ml-1 h-3 w-3" /> : <SortDesc className="ml-1 h-3 w-3" />
-                            )}
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Total non-paid attendees</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TableHead>
-                    <TableHead className="text-center min-w-20">
-                      Actions
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {processedGroups.map((group) => {
-                    const groupRowData = parseGroupedRowData(group.name);
-                    const displayColumns = getDisplayColumns();
-                    
-                    return (
-                      <React.Fragment key={group.name}>
-                        <TableRow 
-                          className="cursor-pointer hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 border-b-2 border-gray-200 transition-all duration-200"
-                          onClick={() => toggleGroup(group.name)}
-                        >
-                          <TableCell className="sticky left-0 bg-white z-10 border-r h-12 py-2">
-                            <div className="flex items-center gap-3">
-                              {expandedGroups.has(group.name) ? 
-                                <ChevronDown className="h-4 w-4 text-gray-500" /> : 
-                                <ChevronRight className="h-4 w-4 text-gray-500" />
-                              }
-                              <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg flex items-center justify-center">
-                                  <Target className="w-4 h-4 text-white" />
-                                </div>
-                                <span className="font-semibold text-sm truncate max-w-[200px]">{group.name}</span>
-                              </div>
-                            </div>
-                          </TableCell>
-                          {displayColumns.map(col => (
-                            <TableCell key={col.key} className="text-center h-12 py-2 text-sm font-medium">
-                              <Badge variant="outline" className="bg-blue-50">
-                                {groupRowData[col.key]}
-                              </Badge>
-                            </TableCell>
-                          ))}
-                          <TableCell className="text-center h-12 py-2">
-                            <Badge variant="secondary" className="bg-gradient-to-r from-blue-100 to-purple-100 text-blue-700">
-                              {group.occurrences}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-center h-12 py-2 text-sm font-bold text-blue-600">
-                            {group.classAverage.toFixed(1)}
-                          </TableCell>
-                          <TableCell className="text-center h-12 py-2 text-sm font-medium">
-                            {formatNumber(group.totalAttendees)}
-                          </TableCell>
-                          <TableCell className="text-center h-12 py-2 text-sm font-medium">
-                            <Badge 
-                              className={`min-w-[70px] justify-center font-bold ${
-                                group.avgFillRate > 80 
-                                  ? 'bg-green-100 text-green-700' 
-                                  : group.avgFillRate > 60 
-                                    ? 'bg-yellow-100 text-yellow-700' 
-                                    : 'bg-red-100 text-red-700'
-                              }`}
-                            >
-                              {group.avgFillRate.toFixed(1)}%
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-center h-12 py-2 text-sm font-medium">
-                            {formatCurrency(group.totalRevenue)}
-                          </TableCell>
-                          <TableCell className="text-center h-12 py-2 text-sm font-medium">
-                            {formatCurrency(group.avgRevenue)}
-                          </TableCell>
-                          <TableCell className="text-center h-12 py-2 text-sm font-medium">
-                            {formatNumber(group.lateCancellations)}
-                          </TableCell>
-                          <TableCell className="text-center h-12 py-2 text-sm font-medium">
-                            {formatNumber(group.complimentaryCount)}
-                          </TableCell>
-                          <TableCell className="text-center h-12 py-2 text-sm font-medium">
-                            {formatNumber(group.nonPaidCount)}
-                          </TableCell>
-                          <TableCell className="text-center h-12 py-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                showDrillDown(group.name);
-                              }}
-                              className="h-8 w-8 p-0 hover:bg-blue-100"
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                        
-                        {expandedGroups.has(group.name) && group.sessions.map((session, index) => (
-                          <TableRow key={`${session.sessionId}-${session.date}-${index}`} className="bg-gradient-to-r from-blue-50/50 to-purple-50/50 hover:from-blue-100/50 hover:to-purple-100/50">
-                            <TableCell className="sticky left-0 bg-blue-50/50 z-10 border-r h-10 py-1 pl-12">
-                              <div className="flex items-center gap-2">
-                                <Calendar className="w-3 h-3 text-blue-500" />
-                                <span className="text-xs text-gray-700 truncate font-medium">
-                                  {session.sessionName} - {session.date}
-                                </span>
-                              </div>
-                            </TableCell>
-                            {displayColumns.map(col => (
-                              <TableCell key={col.key} className="text-center h-10 py-1 text-xs text-gray-600">
-                                <Badge variant="outline" className="text-xs min-w-[60px] justify-center bg-slate-50 text-slate-700">
-                                  {session[col.key as keyof SessionData] || '-'}
-                                </Badge>
-                              </TableCell>
-                            ))}
-                            <TableCell className="text-center h-10 py-1 text-xs text-gray-600">
-                              1
-                            </TableCell>
-                            <TableCell className="text-center h-10 py-1 text-xs font-semibold text-blue-600">
-                              {session.checkedInCount}
-                            </TableCell>
-                            <TableCell className="text-center h-10 py-1 text-xs">
-                              {session.checkedInCount}
-                            </TableCell>
-                            <TableCell className="text-center h-10 py-1 text-xs">
-                              <Badge 
-                                className={`text-xs min-w-[60px] justify-center font-bold ${
-                                  (session.fillPercentage || 0) > 80 
-                                    ? 'bg-green-100 text-green-700' 
-                                    : (session.fillPercentage || 0) > 60 
-                                      ? 'bg-yellow-100 text-yellow-700' 
-                                      : 'bg-red-100 text-red-700'
-                                }`}
-                              >
-                                {session.fillPercentage?.toFixed(1)}%
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-center h-10 py-1 text-xs">
-                              {formatCurrency(session.totalPaid)}
-                            </TableCell>
-                            <TableCell className="text-center h-10 py-1 text-xs">
-                              {formatCurrency(session.totalPaid)}
-                            </TableCell>
-                            <TableCell className="text-center h-10 py-1 text-xs">
-                              {session.lateCancelledCount}
-                            </TableCell>
-                            <TableCell className="text-center h-10 py-1 text-xs">
-                              {session.complimentaryCount}
-                            </TableCell>
-                            <TableCell className="text-center h-10 py-1 text-xs">
-                              {session.nonPaidCount}
-                            </TableCell>
-                            <TableCell className="text-center h-10 py-1">
-                              <Badge variant="outline" className="text-xs min-w-[60px] justify-center bg-blue-50 text-blue-700">
-                                Detail
-                              </Badge>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </React.Fragment>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    </TooltipProvider>
+          <TabsContent value="trainers" className="space-y-4">
+            <OptimizedTable
+              data={groupedData.byTrainer}
+              columns={trainerColumns}
+              maxHeight="400px"
+              stickyHeader={true}
+            />
+          </TabsContent>
+          
+          <TabsContent value="classes" className="space-y-4">
+            <OptimizedTable
+              data={groupedData.byClass}
+              columns={classColumns}
+              maxHeight="400px"
+              stickyHeader={true}
+            />
+          </TabsContent>
+          
+          <TabsContent value="times" className="space-y-4">
+            <OptimizedTable
+              data={groupedData.byTime}
+              columns={timeColumns}
+              maxHeight="400px"
+              stickyHeader={true}
+            />
+          </TabsContent>
+          
+          <TabsContent value="days" className="space-y-4">
+            <OptimizedTable
+              data={groupedData.byDay}
+              columns={dayColumns}
+              maxHeight="400px"
+              stickyHeader={true}
+            />
+          </TabsContent>
+        </Tabs>
+      </CardContent>
+    </Card>
   );
 };
