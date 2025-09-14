@@ -217,7 +217,7 @@
 }
 
 .class-table-row:nth-child(even) {
-  @apply bg-slate-25;
+  @apply bg-slate-50;
 }
 
 /* Table cell utilities */
