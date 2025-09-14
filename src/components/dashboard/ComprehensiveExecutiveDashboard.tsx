@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -19,14 +19,18 @@ import {
   TrendingDown,
   Percent,
   Clock,
-  Home
+  Home,
+  Play,
+  Pause
 } from 'lucide-react';
 import { ExecutiveLocationSelector } from './ExecutiveLocationSelector';
 import { ExecutiveMetricCardsGrid } from './ExecutiveMetricCardsGrid';
 import { ExecutiveChartsGrid } from './ExecutiveChartsGrid';
 import { EnhancedExecutiveDataTables } from './EnhancedExecutiveDataTables';
 import { ExecutiveTopPerformersGrid } from './ExecutiveTopPerformersGrid';
-import { ComprehensiveFilterSection } from '@/components/filters/ComprehensiveFilterSection';
+import { ExecutiveDiscountsTab } from './ExecutiveDiscountsTab';
+import { ExecutiveFilterSection } from './ExecutiveFilterSection';
+import { PowerCycleBarreStrengthComparison } from './PowerCycleBarreStrengthComparison';
 import { SourceDataModal } from '@/components/ui/SourceDataModal';
 import { useGlobalFilters } from '@/contexts/GlobalFiltersContext';
 import { useSalesData } from '@/hooks/useSalesData';
@@ -35,18 +39,13 @@ import { usePayrollData } from '@/hooks/usePayrollData';
 import { useNewClientData } from '@/hooks/useNewClientData';
 import { useLeadsData } from '@/hooks/useLeadsData';
 import { useDiscountAnalysis } from '@/hooks/useDiscountAnalysis';
-import { SalesMetricCards } from './SalesMetricCards';
+import { AdvancedExportButton } from '@/components/ui/AdvancedExportButton';
 
-// Memoized components for better performance
-const MemoizedExecutiveMetricCardsGrid = React.memo(ExecutiveMetricCardsGrid);
-const MemoizedExecutiveChartsGrid = React.memo(ExecutiveChartsGrid);
-const MemoizedSalesMetricCards = React.memo(SalesMetricCards);
-const MemoizedEnhancedExecutiveDataTables = React.memo(EnhancedExecutiveDataTables);
-const MemoizedExecutiveTopPerformersGrid = React.memo(ExecutiveTopPerformersGrid);
-
-export const ComprehensiveExecutiveDashboard = React.memo(() => {
+export const ComprehensiveExecutiveDashboard = () => {
   const [showSourceData, setShowSourceData] = useState(false);
   const [activeSection, setActiveSection] = useState('overview');
+  const [isPlaying, setIsPlaying] = useState(false);
+  const audioRef = useRef<HTMLAudioElement>(null);
   const { filters } = useGlobalFilters();
 
   // Load real data from hooks
@@ -57,7 +56,7 @@ export const ComprehensiveExecutiveDashboard = React.memo(() => {
   const { data: leadsData, loading: leadsLoading } = useLeadsData();
   const { data: discountData, loading: discountLoading } = useDiscountAnalysis();
 
-  // Get unique locations for the selector - memoized for performance
+  // Get unique locations for the selector
   const availableLocations = useMemo(() => {
     const locations = new Set<string>();
     
@@ -80,69 +79,72 @@ export const ComprehensiveExecutiveDashboard = React.memo(() => {
     return Array.from(locations).sort();
   }, [salesData, sessionsData, newClientsData, payrollData]);
 
-  // Get available filter options from data - memoized for performance
-  const availableOptions = useMemo(() => {
-    const categories = new Set<string>();
-    const products = new Set<string>();
-    const soldBy = new Set<string>();
-    const paymentMethods = new Set<string>();
+  // Filter data to previous month and by location
+  const previousMonthData = useMemo(() => {
+    const now = new Date();
+    const previousMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    salesData?.forEach(sale => {
-      if (sale.cleanedCategory) categories.add(sale.cleanedCategory);
-      if (sale.cleanedProduct) products.add(sale.cleanedProduct);
-      if (sale.soldBy) soldBy.add(sale.soldBy);
-      if (sale.paymentMethod) paymentMethods.add(sale.paymentMethod);
-    });
-
-    return {
-      categories: Array.from(categories).sort(),
-      products: Array.from(products).sort(),
-      soldBy: Array.from(soldBy).sort(),
-      paymentMethods: Array.from(paymentMethods).sort()
-    };
-  }, [salesData]);
-
-  // Filter data based on current filters - memoized for performance
-  const filteredData = useMemo(() => {
-    const applyFilters = (items: any[], locationKey: string, dateKey: string) => {
-      return items.filter(item => {
-        // Date filter
-        const itemDate = new Date(item[dateKey]);
-        const startDate = new Date(filters.dateRange.start);
-        const endDate = new Date(filters.dateRange.end);
-        if (itemDate < startDate || itemDate > endDate) return false;
-
-        // Location filter
-        if (filters.location?.length && !filters.location.includes(item[locationKey])) return false;
-
-        // Category filter (for sales data)
-        if (filters.category?.length && item.cleanedCategory && !filters.category.includes(item.cleanedCategory)) return false;
-
-        // Product filter (for sales data)
-        if (filters.product?.length && item.cleanedProduct && !filters.product.includes(item.cleanedProduct)) return false;
-
-        // Payment method filter (for sales data)
-        if (filters.paymentMethod?.length && item.paymentMethod && !filters.paymentMethod.includes(item.paymentMethod)) return false;
-
-        // Sold by filter (for sales data)
-        if (filters.soldBy?.length && item.soldBy && !filters.soldBy.includes(item.soldBy)) return false;
-
-        return true;
-      });
+    const filterByPreviousMonth = (dateStr: string) => {
+      const date = new Date(dateStr);
+      return date >= previousMonth && date < currentMonth;
     };
 
-    return {
-      sales: applyFilters(salesData || [], 'calculatedLocation', 'paymentDate'),
-      sessions: applyFilters(sessionsData || [], 'location', 'date'),
-      payroll: payrollData?.filter(item => {
-        if (filters.location?.length && !filters.location.includes(item.location)) return false;
-        return true;
+    const filterByLocation = (items: any[], locationKey: string) => {
+      if (!filters.location || filters.location.length === 0) return items;
+      const locationFilter = Array.isArray(filters.location) ? filters.location[0] : filters.location;
+      return items.filter(item => item[locationKey] === locationFilter);
+    };
+
+    const filteredSales = filterByLocation(
+      salesData?.filter(item => filterByPreviousMonth(item.paymentDate)) || [],
+      'calculatedLocation'
+    );
+
+    const filteredSessions = filterByLocation(
+      sessionsData?.filter(item => filterByPreviousMonth(item.date)) || [],
+      'location'
+    );
+
+    const filteredPayroll = filterByLocation(
+      payrollData?.filter(item => {
+        const monthYear = item.monthYear;
+        const prevMonthStr = previousMonth.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+        return monthYear === prevMonthStr;
       }) || [],
-      newClients: applyFilters(newClientsData || [], 'homeLocation', 'firstVisitDate'),
-      leads: applyFilters(leadsData || [], 'location', 'createdAt'),
-      discounts: applyFilters(discountData || [], 'location', 'paymentDate')
+      'location'
+    );
+
+    const filteredNewClients = filterByLocation(
+      newClientsData?.filter(item => filterByPreviousMonth(item.firstVisitDate)) || [],
+      'homeLocation'
+    );
+
+    const prevPeriod = `${previousMonth.getFullYear()}-${String(previousMonth.getMonth() + 1).padStart(2, '0')}`;
+
+    const filteredLeads = filterByLocation(
+      (leadsData?.filter(item => {
+        const createdOk = item.createdAt ? filterByPreviousMonth(item.createdAt) : false;
+        const periodOk = item.period ? item.period === prevPeriod : false;
+        return createdOk || periodOk;
+      }) || []),
+      'center'
+    );
+
+    const filteredDiscounts = filterByLocation(
+      discountData?.filter(item => filterByPreviousMonth(item.paymentDate)) || [],
+      'location'
+    );
+
+    return {
+      sales: filteredSales,
+      sessions: filteredSessions,
+      payroll: filteredPayroll,
+      newClients: filteredNewClients,
+      leads: filteredLeads,
+      discounts: filteredDiscounts
     };
-  }, [salesData, sessionsData, payrollData, newClientsData, leadsData, discountData, filters]);
+  }, [salesData, sessionsData, payrollData, newClientsData, leadsData, discountData, filters.location]);
 
   const isLoading = salesLoading || sessionsLoading || payrollLoading || newClientsLoading || leadsLoading || discountLoading;
 
@@ -159,8 +161,32 @@ export const ComprehensiveExecutiveDashboard = React.memo(() => {
 
   const selectedLocation = Array.isArray(filters.location) ? filters.location[0] : filters.location;
 
+  const handlePlayAudio = () => {
+    if (audioRef.current) {
+      if (isPlaying) {
+        audioRef.current.pause();
+        setIsPlaying(false);
+      } else {
+        // Select audio source based on location
+        const audioSrc = selectedLocation === 'Kwality House' 
+          ? '/kwality-house-audio.mp3' 
+          : '/placeholder-audio.mp3';
+        
+        audioRef.current.src = audioSrc;
+        audioRef.current.play();
+        setIsPlaying(true);
+      }
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50/30 to-pink-50/20 p-6">
+      {/* Hidden audio element */}
+      <audio ref={audioRef} onEnded={() => setIsPlaying(false)} preload="metadata">
+        <source src="/placeholder-audio.mp3" type="audio/mpeg" />
+        Your browser does not support the audio element.
+      </audio>
+      
       <div className="max-w-[1600px] mx-auto space-y-8">
         {/* Header */}
         <div className="relative overflow-hidden bg-gradient-to-r from-indigo-900 via-purple-800 to-indigo-700 rounded-3xl text-white shadow-2xl">
@@ -200,12 +226,30 @@ export const ComprehensiveExecutiveDashboard = React.memo(() => {
                 </Badge>
                 <Badge className="bg-blue-500/20 text-blue-100 border-blue-400/30 px-4 py-2">
                   <Users className="w-4 h-4 mr-2" />
-                  {filteredData.sales.length + filteredData.sessions.length + filteredData.newClients.length} Records
+                  {previousMonthData.sales.length + previousMonthData.sessions.length + previousMonthData.newClients.length} Records
                 </Badge>
               </div>
 
               {/* Dashboard Navigation Button */}
-              <div className="flex justify-center mt-6">
+              <div className="flex justify-center gap-4 mt-6">
+                <Button 
+                  onClick={handlePlayAudio}
+                  className="bg-white/10 hover:bg-white/20 text-white border border-white/20 backdrop-blur-sm px-6 py-3 rounded-full text-lg font-semibold shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105"
+                >
+                  {isPlaying ? <Pause className="w-5 h-5 mr-2" /> : <Play className="w-5 h-5 mr-2" />}
+                  {isPlaying ? 'Pause' : 'Play'}
+                </Button>
+                <AdvancedExportButton 
+                  salesData={previousMonthData.sales}
+                  sessionsData={previousMonthData.sessions}
+                  newClientData={previousMonthData.newClients}
+                  payrollData={previousMonthData.payroll}
+                  lateCancellationsData={[]}
+                  discountData={previousMonthData.discounts}
+                  defaultFileName="executive-dashboard-export"
+                  size="lg"
+                  variant="outline"
+                />
                 <Button 
                   onClick={() => window.location.href = '/'}
                   className="bg-white/10 hover:bg-white/20 text-white border border-white/20 backdrop-blur-sm px-6 py-3 rounded-full text-lg font-semibold shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105"
@@ -218,33 +262,14 @@ export const ComprehensiveExecutiveDashboard = React.memo(() => {
           </div>
         </div>
 
-        {/* Location Selector */}
-        <ExecutiveLocationSelector locations={availableLocations} />
+        {/* Filter Section with Location Selector */}
+        <ExecutiveFilterSection availableLocations={availableLocations} />
 
-        {/* Comprehensive Filter Section - underneath location selector, collapsed by default */}
-        <ComprehensiveFilterSection
-          availableLocations={availableLocations}
-          availableCategories={availableOptions.categories}
-          availableProducts={availableOptions.products}
-          availableSoldBy={availableOptions.soldBy}
-          availablePaymentMethods={availableOptions.paymentMethods}
-          showAdvancedFilters={true}
-        />
+        {/* Key Performance Metrics - 12 Cards with real data */}
+        <ExecutiveMetricCardsGrid data={previousMonthData} />
 
-        {/* Sales Metric Cards - showing actual sales data metrics */}
-        <div className="space-y-6">
-          <div className="text-center">
-            <h2 className="text-3xl font-bold text-slate-800 mb-2">Sales Performance Metrics</h2>
-            <p className="text-slate-600">Key financial metrics from sales data</p>
-          </div>
-          <MemoizedSalesMetricCards data={filteredData.sales} />
-        </div>
-
-        {/* Original Key Performance Metrics */}
-        <MemoizedExecutiveMetricCardsGrid data={filteredData} />
-
-        {/* Interactive Charts Section */}
-        <MemoizedExecutiveChartsGrid data={filteredData} />
+        {/* Interactive Charts Section - 4 Charts with real data */}
+        <ExecutiveChartsGrid data={previousMonthData} />
 
         {/* Main Content Sections */}
         <Card className="bg-white/90 backdrop-blur-sm shadow-2xl border-0 overflow-hidden">
@@ -262,7 +287,7 @@ export const ComprehensiveExecutiveDashboard = React.memo(() => {
 
           <CardContent className="p-8">
             <Tabs value={activeSection} onValueChange={setActiveSection} className="w-full">
-              <TabsList className="bg-white/90 backdrop-blur-sm p-2 rounded-2xl shadow-xl border-0 grid grid-cols-4 w-full max-w-4xl mx-auto overflow-hidden mb-8">
+              <TabsList className="bg-white/90 backdrop-blur-sm p-2 rounded-2xl shadow-xl border-0 grid grid-cols-5 w-full max-w-6xl mx-auto overflow-hidden mb-8">
                 <TabsTrigger 
                   value="overview" 
                   className="relative rounded-xl px-4 py-3 font-semibold text-sm transition-all duration-300 ease-out hover:scale-105 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-purple-600 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-gray-50"
@@ -285,6 +310,13 @@ export const ComprehensiveExecutiveDashboard = React.memo(() => {
                   Trend Analysis
                 </TabsTrigger>
                 <TabsTrigger 
+                  value="discounts" 
+                  className="relative rounded-xl px-4 py-3 font-semibold text-sm transition-all duration-300 ease-out hover:scale-105 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-purple-600 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-gray-50"
+                >
+                  <Percent className="w-4 h-4 mr-2" />
+                  Discounts
+                </TabsTrigger>
+                <TabsTrigger 
                   value="insights" 
                   className="relative rounded-xl px-4 py-3 font-semibold text-sm transition-all duration-300 ease-out hover:scale-105 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-purple-600 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-gray-50"
                 >
@@ -295,15 +327,24 @@ export const ComprehensiveExecutiveDashboard = React.memo(() => {
 
               <div className="space-y-6">
                 <TabsContent value="overview" className="space-y-6 mt-0">
-                  <MemoizedEnhancedExecutiveDataTables data={filteredData} selectedLocation={selectedLocation} />
+                  <EnhancedExecutiveDataTables data={previousMonthData} selectedLocation={selectedLocation} />
                 </TabsContent>
 
                 <TabsContent value="performers" className="space-y-6 mt-0">
-                  <MemoizedExecutiveTopPerformersGrid data={filteredData} />
+                  <ExecutiveTopPerformersGrid data={previousMonthData} />
                 </TabsContent>
 
                 <TabsContent value="trends" className="space-y-6 mt-0">
-                  <MemoizedExecutiveChartsGrid data={filteredData} showTrends={true} />
+                  <ExecutiveChartsGrid data={previousMonthData} showTrends={true} />
+                </TabsContent>
+
+                <TabsContent value="discounts" className="space-y-6 mt-0">
+                  <ExecutiveDiscountsTab data={previousMonthData.sales} selectedLocation={selectedLocation} />
+                  <PowerCycleBarreStrengthComparison data={{
+                    sessions: previousMonthData.sessions,
+                    payroll: previousMonthData.payroll,
+                    sales: previousMonthData.sales
+                  }} />
                 </TabsContent>
 
                 <TabsContent value="insights" className="space-y-6 mt-0">
@@ -316,25 +357,25 @@ export const ComprehensiveExecutiveDashboard = React.memo(() => {
                         <div className="flex items-center gap-3 p-3 bg-white/80 rounded-lg">
                           <TrendingUp className="w-5 h-5 text-green-600" />
                           <span className="text-sm font-medium">
-                            Total Revenue: ${filteredData.sales.reduce((sum, sale) => sum + sale.paymentValue, 0).toLocaleString()}
+                            Total Revenue: ${previousMonthData.sales.reduce((sum, sale) => sum + sale.paymentValue, 0).toLocaleString()}
                           </span>
                         </div>
                         <div className="flex items-center gap-3 p-3 bg-white/80 rounded-lg">
                           <Users className="w-5 h-5 text-blue-600" />
                           <span className="text-sm font-medium">
-                            New Clients: {filteredData.newClients.length}
+                            New Clients: {previousMonthData.newClients.length}
                           </span>
                         </div>
                         <div className="flex items-center gap-3 p-3 bg-white/80 rounded-lg">
                           <Target className="w-5 h-5 text-purple-600" />
                           <span className="text-sm font-medium">
-                            Total Sessions: {filteredData.sessions.length}
+                            Total Sessions: {previousMonthData.sessions.length}
                           </span>
                         </div>
                         <div className="flex items-center gap-3 p-3 bg-white/80 rounded-lg">
                           <Percent className="w-5 h-5 text-orange-600" />
                           <span className="text-sm font-medium">
-                            Discount Transactions: {filteredData.discounts.length}
+                            Discount Transactions: {previousMonthData.discounts.length}
                           </span>
                         </div>
                       </CardContent>
@@ -348,26 +389,26 @@ export const ComprehensiveExecutiveDashboard = React.memo(() => {
                         <div className="flex items-center gap-3 p-3 bg-white/80 rounded-lg">
                           <Clock className="w-5 h-5 text-orange-600" />
                           <span className="text-sm font-medium">
-                            Sessions with low attendance: {filteredData.sessions.filter(s => s.checkedInCount < s.capacity * 0.5).length}
+                            Sessions with low attendance: {previousMonthData.sessions.filter(s => s.checkedInCount < s.capacity * 0.5).length}
                           </span>
                         </div>
                         <div className="flex items-center gap-3 p-3 bg-white/80 rounded-lg">
                           <TrendingDown className="w-5 h-5 text-red-600" />
                           <span className="text-sm font-medium">
-                            Empty sessions: {filteredData.sessions.filter(s => s.checkedInCount === 0).length}
+                            Empty sessions: {previousMonthData.sessions.filter(s => s.checkedInCount === 0).length}
                           </span>
                         </div>
                         <div className="flex items-center gap-3 p-3 bg-white/80 rounded-lg">
                           <Zap className="w-5 h-5 text-yellow-600" />
                           <span className="text-sm font-medium">
-                            Lead conversion rate: {filteredData.leads.length > 0 ? 
-                              ((filteredData.leads.filter(l => l.conversionStatus === 'Converted').length / filteredData.leads.length) * 100).toFixed(1) : '0'}%
+                            Lead conversion rate: {previousMonthData.leads.length > 0 ? 
+                              ((previousMonthData.leads.filter(l => l.conversionStatus === 'Converted').length / previousMonthData.leads.length) * 100).toFixed(1) : '0'}%
                           </span>
                         </div>
                         <div className="flex items-center gap-3 p-3 bg-white/80 rounded-lg">
                           <DollarSign className="w-5 h-5 text-green-600" />
                           <span className="text-sm font-medium">
-                            Total Discount Amount: ${filteredData.discounts.reduce((sum, d) => sum + d.discountAmount, 0).toLocaleString()}
+                            Total Discount Amount: ${previousMonthData.discounts.reduce((sum, d) => sum + d.discountAmount, 0).toLocaleString()}
                           </span>
                         </div>
                       </CardContent>
@@ -387,27 +428,27 @@ export const ComprehensiveExecutiveDashboard = React.memo(() => {
             sources={[
               {
                 name: "Sales Data (Previous Month)",
-                data: filteredData.sales
+                data: previousMonthData.sales
               },
               {
                 name: "Sessions Data (Previous Month)",
-                data: filteredData.sessions
+                data: previousMonthData.sessions
               },
               {
                 name: "New Clients Data (Previous Month)",
-                data: filteredData.newClients
+                data: previousMonthData.newClients
               },
               {
                 name: "Leads Data (Previous Month)",
-                data: filteredData.leads
+                data: previousMonthData.leads
               },
               {
                 name: "Payroll Data (Previous Month)",
-                data: filteredData.payroll
+                data: previousMonthData.payroll
               },
               {
                 name: "Discounts Data (Previous Month)",
-                data: filteredData.discounts
+                data: previousMonthData.discounts
               }
             ]}
           />
@@ -444,6 +485,4 @@ export const ComprehensiveExecutiveDashboard = React.memo(() => {
       `}</style>
     </div>
   );
-});
-
-ComprehensiveExecutiveDashboard.displayName = 'ComprehensiveExecutiveDashboard';
+};

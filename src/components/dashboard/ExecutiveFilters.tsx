@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,10 +12,9 @@ import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useGlobalFilters } from '@/contexts/GlobalFiltersContext';
-import { getPreviousMonthDateRange } from '@/utils/dateUtils';
 
 export const ExecutiveFilters: React.FC = () => {
-  const [isExpanded, setIsExpanded] = useState(false); // Changed to false for collapsed by default
+  const [isExpanded, setIsExpanded] = useState(false);
   const { filters, updateFilters, clearFilters } = useGlobalFilters();
 
   const handleDateRangeChange = (type: 'start' | 'end', date: Date | null) => {
@@ -30,12 +28,8 @@ export const ExecutiveFilters: React.FC = () => {
   };
 
   const clearDateRange = () => {
-    // Set to July 2025 range
     updateFilters({
-      dateRange: {
-        start: '2025-07-01',
-        end: '2025-07-31'
-      }
+      dateRange: { start: '', end: '' }
     });
   };
 
@@ -59,7 +53,7 @@ export const ExecutiveFilters: React.FC = () => {
               <div className="flex items-center gap-2">
                 <Badge className="bg-purple-100 text-purple-700">
                   <Calendar className="w-3 h-3 mr-1" />
-                  July 2025 Focus
+                  Previous Month Focus
                 </Badge>
                 {activeFilterCount > 0 && (
                   <Button

@@ -2,7 +2,6 @@ import React, { memo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Footer } from '@/components/ui/footer';
 import { DashboardGrid } from '@/components/dashboard/DashboardGrid';
-import { FloatingNoteIcon } from '@/components/ui/FloatingNoteIcon';
 import { useGoogleSheets } from '@/hooks/useGoogleSheets';
 import { Card, CardContent } from '@/components/ui/card';
 import { AlertCircle, RefreshCw } from 'lucide-react';
@@ -30,7 +29,13 @@ const Index = () => {
     refetch
   } = useGoogleSheets();
   const handleSectionClick = useCallback((sectionId: string) => {
-    navigate(`/${sectionId}`);
+    if (sectionId === 'class-performance-series') {
+      window.open('https://class-performance-series-001.vercel.app/', '_blank');
+    } else if (sectionId === 'late-cancellations') {
+      navigate('/late-cancellations');
+    } else {
+      navigate(`/${sectionId}`);
+    }
   }, [navigate]);
   const handleRetry = useCallback(() => {
     refetch();
@@ -60,8 +65,6 @@ const Index = () => {
       </div>;
   }
   return <div className="min-h-screen bg-white relative overflow-hidden">
-      <FloatingNoteIcon tabId="home" />
-      
       {/* Simplified Background */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-rose-50/20 via-purple-50/10 to-pink-50/20"></div>
@@ -91,7 +94,7 @@ const Index = () => {
             {/* Compact Stats Cards */}
             <div className="flex flex-wrap justify-center gap-4 mb-6">
               <StatsCard title="Real-time" subtitle="Data Insights" />
-              <StatsCard title="8+" subtitle="Analytics Modules" />
+              <StatsCard title="10+" subtitle="Analytics Modules" />
               <StatsCard title="Precision" subtitle="Data Accuracy" />
             </div>
 

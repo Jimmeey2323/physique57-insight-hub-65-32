@@ -13,7 +13,6 @@ export const SessionsAttendanceAnalytics: React.FC<SessionsAttendanceAnalyticsPr
   const chartData = useMemo(() => {
     if (!data || data.length === 0) return [];
 
-    // Use the already filtered data passed from parent - no additional filtering needed
     // Group data by date and calculate daily metrics
     const dailyStats = data.reduce((acc, session) => {
       const sessionDate = new Date(session.date);
@@ -102,7 +101,7 @@ export const SessionsAttendanceAnalytics: React.FC<SessionsAttendanceAnalyticsPr
   return (
     <div className="space-y-8">
       {/* Daily Attendance Trends */}
-      <Card className="bg-gradient-to-br from-white via-blue-50/30 to-white border-0 shadow-xl" data-export-chart data-chart-name="Daily Attendance Analytics">
+      <Card className="bg-gradient-to-br from-white via-blue-50/30 to-white border-0 shadow-xl">
         <CardHeader className="pb-4">
           <CardTitle className="text-xl font-bold bg-gradient-to-r from-slate-700 to-slate-900 bg-clip-text text-transparent flex items-center gap-2">
             <TrendingUp className="w-6 h-6 text-blue-600" />
@@ -154,7 +153,7 @@ export const SessionsAttendanceAnalytics: React.FC<SessionsAttendanceAnalyticsPr
       </Card>
 
       {/* Weekly Performance Trends */}
-      <Card className="bg-gradient-to-br from-white via-purple-50/30 to-white border-0 shadow-xl" data-export-chart data-chart-name="Weekly Performance Overview">
+      <Card className="bg-gradient-to-br from-white via-purple-50/30 to-white border-0 shadow-xl">
         <CardHeader className="pb-4">
           <CardTitle className="text-xl font-bold bg-gradient-to-r from-slate-700 to-slate-900 bg-clip-text text-transparent flex items-center gap-2">
             <Calendar className="w-6 h-6 text-purple-600" />

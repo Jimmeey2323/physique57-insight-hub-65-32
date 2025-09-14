@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -28,50 +29,30 @@ export const ClientConversionMetrics: React.FC<ClientConversionMetricsProps> = (
     }
 
     const totalClients = data.length;
-    
-    // Converted clients - check if "Conversion Status" contains "Converted" but not "Not Converted"
-    const convertedClients = data.filter(client => {
-      const conversionStatus = String(client.conversionStatus || '').trim();
-      return conversionStatus.includes('Converted') && conversionStatus !== 'Not Converted';
-    }).length;
-    
-    // Retained clients - check if "Retention Status" contains "Retained" but not "Not Retained"
-    const retainedClients = data.filter(client => {
-      const retentionStatus = String(client.retentionStatus || '').trim();
-      return retentionStatus.includes('Retained') && retentionStatus !== 'Not Retained';
-    }).length;
-    
+    const convertedClients = data.filter(client => client.conversionStatus === 'Converted').length;
+    const retainedClients = data.filter(client => client.retentionStatus === 'Retained').length;
     const totalLTV = data.reduce((sum, client) => sum + (client.ltv || 0), 0);
     const averageLTV = totalClients > 0 ? totalLTV / totalClients : 0;
     
     // Calculate average conversion time from conversionSpan
     const conversionsWithTime = data.filter(client => 
-      client.conversionStatus && client.conversionStatus.includes('Converted') && 
-      client.conversionStatus !== 'Not Converted' && (client.conversionSpan || 0) > 0
+      client.conversionStatus === 'Converted' && client.conversionSpan > 0
     );
     const averageConversionTime = conversionsWithTime.length > 0 
-      ? conversionsWithTime.reduce((sum, client) => sum + (client.conversionSpan || 0), 0) / conversionsWithTime.length
+      ? conversionsWithTime.reduce((sum, client) => sum + client.conversionSpan, 0) / conversionsWithTime.length
       : 0;
 
     // Calculate average visits post trial
-    const clientsWithVisits = data.filter(client => (client.visitsPostTrial || 0) > 0);
+    const clientsWithVisits = data.filter(client => client.visitsPostTrial > 0);
     const averageVisitsPostTrial = clientsWithVisits.length > 0
-      ? clientsWithVisits.reduce((sum, client) => sum + (client.visitsPostTrial || 0), 0) / clientsWithVisits.length
+      ? clientsWithVisits.reduce((sum, client) => sum + client.visitsPostTrial, 0) / clientsWithVisits.length
       : 0;
 
-    // New clients metrics - check if "Is New" contains "New" but not "Not New"
-    const newClientsOnly = data.filter(client => {
-      const isNewValue = String(client.isNew || '').trim();
-      return isNewValue.includes('New') && isNewValue !== 'Not New';
-    }).length;
-    
-    const newClientsConverted = data.filter(client => {
-      const isNewValue = String(client.isNew || '').trim();
-      const conversionStatus = String(client.conversionStatus || '').trim();
-      return (isNewValue.includes('New') && isNewValue !== 'Not New') && 
-             (conversionStatus.includes('Converted') && conversionStatus !== 'Not Converted');
-    }).length;
-    
+    // New clients metrics
+    const newClientsOnly = data.filter(client => client.isNew === 'New').length;
+    const newClientsConverted = data.filter(client => 
+      client.isNew === 'New' && client.conversionStatus === 'Converted'
+    ).length;
     const newClientConversionRate = newClientsOnly > 0 ? (newClientsConverted / newClientsOnly) * 100 : 0;
 
     return {

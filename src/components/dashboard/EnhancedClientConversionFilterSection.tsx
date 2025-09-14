@@ -51,11 +51,19 @@ export const EnhancedClientConversionFilterSection: React.FC<EnhancedClientConve
   };
 
   const handleDateRangeChange = (range: { from?: Date; to?: Date }) => {
+    // Helper function to format date without timezone offset
+    const formatDateForFilter = (date: Date): string => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+
     onFiltersChange({
       ...filters,
       dateRange: {
-        start: range.from ? range.from.toISOString().split('T')[0] : '',
-        end: range.to ? range.to.toISOString().split('T')[0] : ''
+        start: range.from ? formatDateForFilter(range.from) : '',
+        end: range.to ? formatDateForFilter(range.to) : ''
       }
     });
   };
@@ -220,29 +228,20 @@ export const EnhancedClientConversionFilterSection: React.FC<EnhancedClientConve
       </CardHeader>
       
       <CardContent className="p-8 space-y-8">
-        {/* Enhanced Date Range and Search */}
+        {/* Date Range and Search */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="space-y-3">
             <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
               <Calendar className="w-5 h-5 text-blue-600" />
-              Date Range Filter
+              Date Range
             </label>
-            <div className="bg-white rounded-lg p-1 border border-slate-200 shadow-sm">
-              <DatePickerWithRange
-                value={{
-                  from: filters.dateRange.start ? new Date(filters.dateRange.start) : undefined,
-                  to: filters.dateRange.end ? new Date(filters.dateRange.end) : undefined
-                }}
-                onChange={handleDateRangeChange}
-                className="w-full"
-              />
-            </div>
-            <p className="text-xs text-slate-500">
-              {filters.dateRange.start && filters.dateRange.end 
-                ? `Filtering data from ${filters.dateRange.start} to ${filters.dateRange.end}`
-                : 'Select date range to filter client data'
-              }
-            </p>
+            <DatePickerWithRange
+              value={{
+                from: filters.dateRange.start ? new Date(filters.dateRange.start) : undefined,
+                to: filters.dateRange.end ? new Date(filters.dateRange.end) : undefined
+              }}
+              onChange={handleDateRangeChange}
+            />
           </div>
           
           <div className="space-y-3">
@@ -256,7 +255,6 @@ export const EnhancedClientConversionFilterSection: React.FC<EnhancedClientConve
               onChange={(e) => setSearchTerm(e.target.value)}
               className="bg-white border-slate-200"
             />
-            <p className="text-xs text-slate-500">Filter options by typing keywords</p>
           </div>
         </div>
 

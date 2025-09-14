@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { TrendingUp, TrendingDown, Users, MapPin, Calendar, User, ChevronRight } from 'lucide-react';
 import { formatNumber, formatCurrency, formatPercentage } from '@/utils/formatters';
 import { NewClientData } from '@/types/dashboard';
@@ -295,6 +295,34 @@ export const ConversionAnalyticsTables: React.FC<ConversionAnalyticsTablesProps>
                       </TableRow>
                     ))}
                   </TableBody>
+                  <TableFooter className="sticky bottom-0 z-10 bg-slate-900 border-t-2 border-slate-700">
+                    <TableRow className="hover:bg-slate-800 h-10 max-h-10 border-none">
+                      <TableCell className="font-bold text-white">TOTAL</TableCell>
+                      <TableCell className="text-right font-bold text-white">{formatNumber(sourceList.reduce((sum, row) => sum + row.leads, 0))}</TableCell>
+                      <TableCell className="text-right font-bold text-white">{formatNumber(sourceList.reduce((sum, row) => sum + row.trialsCompleted, 0))}</TableCell>
+                      <TableCell className="text-right font-bold text-white">
+                        {sourceList.reduce((sum, row) => sum + row.leads, 0) > 0 ? 
+                          ((sourceList.reduce((sum, row) => sum + row.trialsCompleted, 0) / sourceList.reduce((sum, row) => sum + row.leads, 0)) * 100).toFixed(1) : '0.0'}%
+                      </TableCell>
+                      <TableCell className="text-right font-bold text-white">{formatNumber(sourceList.reduce((sum, row) => sum + row.conversions, 0))}</TableCell>
+                      <TableCell className="text-right font-bold text-white">
+                        {sourceList.reduce((sum, row) => sum + row.trialsCompleted, 0) > 0 ? 
+                          ((sourceList.reduce((sum, row) => sum + row.conversions, 0) / sourceList.reduce((sum, row) => sum + row.trialsCompleted, 0)) * 100).toFixed(1) : '0.0'}%
+                      </TableCell>
+                      <TableCell className="text-right font-bold text-white">
+                        {sourceList.reduce((sum, row) => sum + row.conversions, 0) > 0 ? 
+                          Math.round(sourceList.reduce((sum, row) => sum + (row.avgConversionSpan * row.conversions), 0) / sourceList.reduce((sum, row) => sum + row.conversions, 0)) : 0} days
+                      </TableCell>
+                      <TableCell className="text-right font-bold text-white">
+                        {formatCurrency(sourceList.reduce((sum, row) => sum + row.leads, 0) > 0 ? 
+                          sourceList.reduce((sum, row) => sum + row.totalLTV, 0) / sourceList.reduce((sum, row) => sum + row.leads, 0) : 0)}
+                      </TableCell>
+                      <TableCell className="text-right font-bold text-white">
+                        {sourceList.reduce((sum, row) => sum + row.trialsCompleted, 0) > 0 ? 
+                          (sourceList.reduce((sum, row) => sum + (row.avgPostTrialClasses * row.trialsCompleted), 0) / sourceList.reduce((sum, row) => sum + row.trialsCompleted, 0)).toFixed(1) : '0.0'}
+                      </TableCell>
+                    </TableRow>
+                  </TableFooter>
                 </Table>
               </div>
             </CardContent>
@@ -355,6 +383,30 @@ export const ConversionAnalyticsTables: React.FC<ConversionAnalyticsTablesProps>
                       </TableRow>
                     ))}
                   </TableBody>
+                  <TableFooter className="sticky bottom-0 z-10 bg-slate-900 border-t-2 border-slate-700">
+                    <TableRow className="hover:bg-slate-800 h-10 max-h-10 border-none">
+                      <TableCell className="font-bold text-white">TOTAL</TableCell>
+                      <TableCell className="text-right font-bold text-white">{formatNumber(stageList.reduce((sum, row) => sum + row.leads, 0))}</TableCell>
+                      <TableCell className="text-right font-bold text-white">{formatNumber(stageList.reduce((sum, row) => sum + row.trialsCompleted, 0))}</TableCell>
+                      <TableCell className="text-right font-bold text-white">
+                        {stageList.reduce((sum, row) => sum + row.leads, 0) > 0 ? 
+                          ((stageList.reduce((sum, row) => sum + row.trialsCompleted, 0) / stageList.reduce((sum, row) => sum + row.leads, 0)) * 100).toFixed(1) : '0.0'}%
+                      </TableCell>
+                      <TableCell className="text-right font-bold text-white">{formatNumber(stageList.reduce((sum, row) => sum + row.conversions, 0))}</TableCell>
+                      <TableCell className="text-right font-bold text-white">
+                        {stageList.reduce((sum, row) => sum + row.trialsCompleted, 0) > 0 ? 
+                          ((stageList.reduce((sum, row) => sum + row.conversions, 0) / stageList.reduce((sum, row) => sum + row.trialsCompleted, 0)) * 100).toFixed(1) : '0.0'}%
+                      </TableCell>
+                      <TableCell className="text-right font-bold text-white">
+                        {stageList.reduce((sum, row) => sum + row.conversions, 0) > 0 ? 
+                          Math.round(stageList.reduce((sum, row) => sum + (row.avgConversionSpan * row.conversions), 0) / stageList.reduce((sum, row) => sum + row.conversions, 0)) : 0} days
+                      </TableCell>
+                      <TableCell className="text-right font-bold text-white">
+                        {stageList.reduce((sum, row) => sum + row.trialsCompleted, 0) > 0 ? 
+                          (stageList.reduce((sum, row) => sum + (row.avgPostTrialClasses * row.trialsCompleted), 0) / stageList.reduce((sum, row) => sum + row.trialsCompleted, 0)).toFixed(1) : '0.0'}
+                      </TableCell>
+                    </TableRow>
+                  </TableFooter>
                 </Table>
               </div>
             </CardContent>
@@ -415,6 +467,30 @@ export const ConversionAnalyticsTables: React.FC<ConversionAnalyticsTablesProps>
                       </TableRow>
                     ))}
                   </TableBody>
+                  <TableFooter className="sticky bottom-0 z-10 bg-slate-900 border-t-2 border-slate-700">
+                    <TableRow className="hover:bg-slate-800 h-10 max-h-10 border-none">
+                      <TableCell className="font-bold text-white">TOTAL</TableCell>
+                      <TableCell className="text-right font-bold text-white">{formatNumber(associateList.reduce((sum, row) => sum + row.leads, 0))}</TableCell>
+                      <TableCell className="text-right font-bold text-white">{formatNumber(associateList.reduce((sum, row) => sum + row.trialsCompleted, 0))}</TableCell>
+                      <TableCell className="text-right font-bold text-white">
+                        {associateList.reduce((sum, row) => sum + row.leads, 0) > 0 ? 
+                          ((associateList.reduce((sum, row) => sum + row.trialsCompleted, 0) / associateList.reduce((sum, row) => sum + row.leads, 0)) * 100).toFixed(1) : '0.0'}%
+                      </TableCell>
+                      <TableCell className="text-right font-bold text-white">{formatNumber(associateList.reduce((sum, row) => sum + row.conversions, 0))}</TableCell>
+                      <TableCell className="text-right font-bold text-white">
+                        {associateList.reduce((sum, row) => sum + row.trialsCompleted, 0) > 0 ? 
+                          ((associateList.reduce((sum, row) => sum + row.conversions, 0) / associateList.reduce((sum, row) => sum + row.trialsCompleted, 0)) * 100).toFixed(1) : '0.0'}%
+                      </TableCell>
+                      <TableCell className="text-right font-bold text-white">
+                        {associateList.reduce((sum, row) => sum + row.conversions, 0) > 0 ? 
+                          Math.round(associateList.reduce((sum, row) => sum + (row.avgConversionSpan * row.conversions), 0) / associateList.reduce((sum, row) => sum + row.conversions, 0)) : 0} days
+                      </TableCell>
+                      <TableCell className="text-right font-bold text-white">
+                        {associateList.reduce((sum, row) => sum + row.trialsCompleted, 0) > 0 ? 
+                          (associateList.reduce((sum, row) => sum + (row.avgPostTrialClasses * row.trialsCompleted), 0) / associateList.reduce((sum, row) => sum + row.trialsCompleted, 0)).toFixed(1) : '0.0'}
+                      </TableCell>
+                    </TableRow>
+                  </TableFooter>
                 </Table>
               </div>
             </CardContent>
@@ -475,6 +551,30 @@ export const ConversionAnalyticsTables: React.FC<ConversionAnalyticsTablesProps>
                       </TableRow>
                     ))}
                   </TableBody>
+                  <TableFooter className="sticky bottom-0 z-10 bg-slate-900 border-t-2 border-slate-700">
+                    <TableRow className="hover:bg-slate-800 h-10 max-h-10 border-none">
+                      <TableCell className="font-bold text-white">TOTAL</TableCell>
+                      <TableCell className="text-right font-bold text-white">{formatNumber(classTypeList.reduce((sum, row) => sum + row.leads, 0))}</TableCell>
+                      <TableCell className="text-right font-bold text-white">{formatNumber(classTypeList.reduce((sum, row) => sum + row.trialsCompleted, 0))}</TableCell>
+                      <TableCell className="text-right font-bold text-white">
+                        {classTypeList.reduce((sum, row) => sum + row.leads, 0) > 0 ? 
+                          ((classTypeList.reduce((sum, row) => sum + row.trialsCompleted, 0) / classTypeList.reduce((sum, row) => sum + row.leads, 0)) * 100).toFixed(1) : '0.0'}%
+                      </TableCell>
+                      <TableCell className="text-right font-bold text-white">{formatNumber(classTypeList.reduce((sum, row) => sum + row.conversions, 0))}</TableCell>
+                      <TableCell className="text-right font-bold text-white">
+                        {classTypeList.reduce((sum, row) => sum + row.trialsCompleted, 0) > 0 ? 
+                          ((classTypeList.reduce((sum, row) => sum + row.conversions, 0) / classTypeList.reduce((sum, row) => sum + row.trialsCompleted, 0)) * 100).toFixed(1) : '0.0'}%
+                      </TableCell>
+                      <TableCell className="text-right font-bold text-white">
+                        {classTypeList.reduce((sum, row) => sum + row.conversions, 0) > 0 ? 
+                          Math.round(classTypeList.reduce((sum, row) => sum + (row.avgConversionSpan * row.conversions), 0) / classTypeList.reduce((sum, row) => sum + row.conversions, 0)) : 0} days
+                      </TableCell>
+                      <TableCell className="text-right font-bold text-white">
+                        {classTypeList.reduce((sum, row) => sum + row.trialsCompleted, 0) > 0 ? 
+                          (classTypeList.reduce((sum, row) => sum + (row.avgPostTrialClasses * row.trialsCompleted), 0) / classTypeList.reduce((sum, row) => sum + row.trialsCompleted, 0)).toFixed(1) : '0.0'}
+                      </TableCell>
+                    </TableRow>
+                  </TableFooter>
                 </Table>
               </div>
             </CardContent>

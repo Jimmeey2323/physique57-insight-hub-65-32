@@ -78,22 +78,22 @@ export const ClientConversionDetailedDataTable: React.FC<ClientConversionDetaile
   const getConversionStatusBadge = (status: string) => {
     const statusLower = status?.toLowerCase() || '';
     if (statusLower.includes('converted')) {
-      return <Badge className="bg-green-100 text-green-800 border-green-200">Converted</Badge>;
+      return <Badge className="bg-gradient-to-r from-green-500 to-green-600 text-white font-bold shadow-md">Converted</Badge>;
     } else if (statusLower.includes('pending')) {
-      return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">Pending</Badge>;
+      return <Badge className="bg-gradient-to-r from-yellow-500 to-yellow-600 text-white font-bold shadow-md">Pending</Badge>;
     } else {
-      return <Badge className="bg-red-100 text-red-800 border-red-200">Not Converted</Badge>;
+      return <Badge className="bg-gradient-to-r from-red-500 to-red-600 text-white font-bold shadow-md">Not Converted</Badge>;
     }
   };
 
   const getRetentionStatusBadge = (status: string) => {
     const statusLower = status?.toLowerCase() || '';
     if (statusLower.includes('retained')) {
-      return <Badge className="bg-blue-100 text-blue-800 border-blue-200">Retained</Badge>;
+      return <Badge className="bg-gradient-to-r from-blue-500 to-blue-600 text-white font-bold shadow-md">Retained</Badge>;
     } else if (statusLower.includes('risk')) {
-      return <Badge className="bg-orange-100 text-orange-800 border-orange-200">At Risk</Badge>;
+      return <Badge className="bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold shadow-md">At Risk</Badge>;
     } else {
-      return <Badge className="bg-gray-100 text-gray-800 border-gray-200">Not Retained</Badge>;
+      return <Badge className="bg-gradient-to-r from-gray-500 to-gray-600 text-white font-bold shadow-md">Not Retained</Badge>;
     }
   };
 
@@ -103,10 +103,13 @@ export const ClientConversionDetailedDataTable: React.FC<ClientConversionDetaile
       header: 'Customer Details',
       render: (value: string, item: NewClientData) => (
         <div className="space-y-1">
-          <div className="font-semibold text-slate-900">{`${item.firstName || ''} ${item.lastName || ''}`.trim() || 'Unknown'}</div>
+          <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white text-sm font-bold shadow-lg">
+            {value ? value.charAt(0).toUpperCase() : 'U'}
+          </div>
+          <div className="font-bold text-slate-800">{`${item.firstName || ''} ${item.lastName || ''}`.trim() || 'Unknown'}</div>
           <div className="text-xs text-slate-500 flex items-center gap-1">
             <Calendar className="w-3 h-3" />
-            {formatDate(item.firstVisitDate)}
+            {item.firstVisitDate ? formatDate(item.firstVisitDate) : 'No date'}
           </div>
           <div className="text-xs text-slate-500 flex items-center gap-1">
             <MapPin className="w-3 h-3" />
@@ -125,7 +128,9 @@ export const ClientConversionDetailedDataTable: React.FC<ClientConversionDetaile
           <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
             {value ? value.split(' ').map(n => n[0]).join('').slice(0, 2) : 'UK'}
           </div>
-          <span className="font-medium text-slate-800">{value || 'Unassigned'}</span>
+          <div>
+            <div className="font-bold text-slate-800">{value || 'Unassigned'}</div>
+          </div>
         </div>
       ),
       className: 'min-w-[150px]',
@@ -136,7 +141,9 @@ export const ClientConversionDetailedDataTable: React.FC<ClientConversionDetaile
       header: 'Membership',
       render: (value: string) => (
         <div className="text-sm">
-          <div className="font-medium text-slate-800">{value || 'None'}</div>
+          <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 font-bold">
+            {value || 'None'}
+          </Badge>
         </div>
       ),
       className: 'min-w-[120px]',
@@ -145,16 +152,17 @@ export const ClientConversionDetailedDataTable: React.FC<ClientConversionDetaile
     {
       key: 'ltv',
       header: 'LTV',
-      render: (value: number) => (
-        <div className="text-center">
-          <div className="font-bold text-emerald-600 text-lg">
-            {formatCurrency(value || 0)}
+      render: (value: number) => {
+        if (!value || value === 0) return <span className="text-xs text-slate-400">-</span>;
+        return (
+          <div className="text-center space-y-1">
+            <div className="font-bold text-emerald-600">{formatCurrency(value)}</div>
+            <div className="text-xs text-slate-500">
+              {value > 50000 ? 'High Value' : value > 20000 ? 'Medium' : 'Standard'}
+            </div>
           </div>
-          <div className="text-xs text-slate-500">
-            {value > 50000 ? 'High Value' : value > 20000 ? 'Medium' : 'Standard'}
-          </div>
-        </div>
-      ),
+        );
+      },
       align: 'center' as const,
       sortable: true
     },
@@ -193,7 +201,7 @@ export const ClientConversionDetailedDataTable: React.FC<ClientConversionDetaile
       key: 'paymentMethod',
       header: 'Payment',
       render: (value: string) => (
-        <Badge variant="outline" className="text-xs">
+        <Badge variant="outline" className="text-xs bg-indigo-50 text-indigo-700 border-indigo-200 font-bold">
           {value || 'Unknown'}
         </Badge>
       ),
@@ -229,7 +237,7 @@ export const ClientConversionDetailedDataTable: React.FC<ClientConversionDetaile
   }, [filteredAndSortedData]);
 
   return (
-    <Card className="bg-white shadow-xl border-0 overflow-hidden">
+    <Card className="bg-white shadow-2xl border-0 overflow-hidden hover:shadow-3xl transition-all duration-300">
       <CardHeader className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 text-white">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-3 text-xl font-bold">
@@ -249,33 +257,33 @@ export const ClientConversionDetailedDataTable: React.FC<ClientConversionDetaile
       </CardHeader>
 
       {/* Summary Statistics */}
-      <div className="bg-gradient-to-r from-slate-50 to-blue-50 border-b border-slate-200 p-6">
+      <div className="bg-gradient-to-r from-slate-50 via-blue-50 to-purple-50 border-b border-slate-200 p-6">
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           <div className="text-center">
-            <div className="text-2xl font-bold text-slate-800">{formatNumber(summaryStats.totalClients)}</div>
+            <div className="text-3xl font-black text-slate-800">{formatNumber(summaryStats.totalClients)}</div>
             <div className="text-sm text-slate-600">Total Clients</div>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold text-emerald-600">{formatCurrency(summaryStats.avgLTV)}</div>
+            <div className="text-3xl font-black text-emerald-600">{formatCurrency(summaryStats.avgLTV)}</div>
             <div className="text-sm text-slate-600">Avg LTV</div>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold text-blue-600">{summaryStats.conversionRate.toFixed(1)}%</div>
+            <div className="text-3xl font-black text-blue-600">{summaryStats.conversionRate.toFixed(1)}%</div>
             <div className="text-sm text-slate-600">Conversion Rate</div>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold text-purple-600">{summaryStats.retentionRate.toFixed(1)}%</div>
+            <div className="text-3xl font-black text-purple-600">{summaryStats.retentionRate.toFixed(1)}%</div>
             <div className="text-sm text-slate-600">Retention Rate</div>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold text-green-600">{formatCurrency(summaryStats.totalRevenue)}</div>
+            <div className="text-3xl font-black text-green-600">{formatCurrency(summaryStats.totalRevenue)}</div>
             <div className="text-sm text-slate-600">Total Revenue</div>
           </div>
         </div>
       </div>
 
       {/* Search and Filters */}
-      <div className="p-6 border-b border-slate-200 bg-slate-50">
+      <div className="p-6 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-blue-50">
         <div className="flex items-center gap-4">
           <div className="relative flex-1 max-w-md">
             <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" />
@@ -283,7 +291,7 @@ export const ClientConversionDetailedDataTable: React.FC<ClientConversionDetaile
               placeholder="Search clients, trainers, locations..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 bg-white border-slate-200"
+              className="pl-10 bg-white border-slate-200 shadow-sm"
             />
           </div>
           <Badge variant="outline" className="text-slate-600">
@@ -297,11 +305,13 @@ export const ClientConversionDetailedDataTable: React.FC<ClientConversionDetaile
         <ModernDataTable
           data={filteredAndSortedData}
           columns={columns}
-          maxHeight="600px"
+          maxHeight="700px"
           stickyHeader={true}
           onSort={handleSort}
           sortField={sortField}
           sortDirection={sortDirection}
+          onRowClick={onItemClick ? (row) => onItemClick(row) : undefined}
+          headerGradient="from-slate-900 via-blue-900 to-indigo-900"
         />
       </CardContent>
     </Card>

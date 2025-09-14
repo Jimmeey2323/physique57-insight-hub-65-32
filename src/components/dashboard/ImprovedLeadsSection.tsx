@@ -16,7 +16,6 @@ import { LeadYearOnYearSourceTable } from './LeadYearOnYearSourceTable';
 import { LeadConversionAnalyticsTable } from './LeadConversionAnalyticsTable';
 import { FunnelStageAnalytics } from './FunnelStageAnalytics';
 import { formatNumber, formatCurrency } from '@/utils/formatters';
-import { getPreviousMonthDateRange } from '@/utils/dateUtils';
 import { motion } from 'framer-motion';
 
 export const ImprovedLeadsSection = () => {
@@ -70,24 +69,6 @@ export const ImprovedLeadsSection = () => {
       return true;
     });
   }, [leadsData, globalFilters]);
-
-  // Clear filters and reset to previous month
-  const handleClearFilters = () => {
-    const previousMonthRange = getPreviousMonthDateRange();
-    updateFilters({
-      dateRange: {
-        start: previousMonthRange.start,
-        end: previousMonthRange.end
-      },
-      location: [],
-      source: [],
-      stage: [],
-      status: [],
-      associate: [],
-      minLTV: undefined,
-      maxLTV: undefined
-    });
-  };
 
   if (loading) {
     return (
@@ -173,7 +154,7 @@ export const ImprovedLeadsSection = () => {
                       : 'All dates'
                     }
                   </Badge>
-                  <Button variant="outline" size="sm" onClick={handleClearFilters}>
+                  <Button variant="outline" size="sm" onClick={clearFilters}>
                     Clear Filters
                   </Button>
                 </div>

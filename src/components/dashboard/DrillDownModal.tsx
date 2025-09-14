@@ -34,10 +34,27 @@ export const DrillDownModal: React.FC<DrillDownModalProps> = ({
   };
 
   const renderAnalyticsDetails = () => {
-    const grossRevenue = safeNumber(data.grossRevenue || data.totalValue || data.totalCurrent || data.metricValue, 0);
-    const transactions = safeNumber(data.transactions || data.totalTransactions || (data.rawData?.length), 0);
-    const uniqueMembers = safeNumber(data.uniqueMembers || data.totalCustomers, 0);
-    const totalChange = safeNumber(data.totalChange, 0);
+    // Better data extraction with multiple fallbacks
+    const grossRevenue = safeNumber(
+      data.grossRevenue || data.totalValue || data.totalCurrent || data.metricValue || 
+      data.revenue || data.totalRevenue || data.amount || data.value || 
+      (data.rawData?.reduce((sum: number, item: any) => sum + (item.paymentValue || item.grossRevenue || 0), 0)), 
+      0
+    );
+    
+    const transactions = safeNumber(
+      data.transactions || data.totalTransactions || data.count || data.totalCount ||
+      (data.rawData?.length) || (data.months ? Object.values(data.months).reduce((sum: number, m: any) => sum + (m.transactions || 1), 0) : 0),
+      0
+    );
+    
+    const uniqueMembers = safeNumber(
+      data.uniqueMembers || data.totalCustomers || data.customers || data.memberCount ||
+      (data.rawData ? new Set(data.rawData.map((item: any) => item.memberId || item.customerEmail)).size : 0),
+      0
+    );
+    
+    const totalChange = safeNumber(data.totalChange || data.change || data.growth, 0);
     
     return (
       <div className="space-y-6">

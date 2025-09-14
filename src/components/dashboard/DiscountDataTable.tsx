@@ -139,18 +139,18 @@ export const DiscountDataTable: React.FC<DiscountDataTableProps> = ({ data, filt
     { key: 'customerName', header: 'Customer', align: 'left' as const },
     { key: 'paymentItem', header: 'Product', align: 'left' as const },
     { key: 'cleanedCategory', header: 'Category', align: 'left' as const,
-      render: (value: string) => <Badge variant="outline" className="w-24 justify-center text-xs">{value}</Badge>
+      render: (value: string) => <Badge variant="outline" className="w-24 justify-center text-xs"><span>{value}</span></Badge>
     },
     { key: 'displayDate', header: 'Date', align: 'center' as const },
     { key: 'paymentMethod', header: 'Payment Method', align: 'center' as const,
-      render: (value: string) => <Badge variant="secondary" className="w-20 justify-center text-xs">{value}</Badge>
+      render: (value: string) => <Badge variant="secondary" className="w-20 justify-center text-xs"><span>{value}</span></Badge>
     },
     { key: 'displaySoldBy', header: 'Sold By', align: 'center' as const },
     { key: 'discountAmount', header: 'Discount', align: 'right' as const,
       render: (value: number) => <span className="font-bold text-red-600">{formatCurrency(value)}</span>
     },
     { key: 'discountPercentage', header: 'Discount %', align: 'right' as const,
-      render: (value: number) => <span className="font-medium text-orange-600">{value.toFixed(1)}%</span>
+      render: (value: number) => <span className="font-medium text-orange-600">{value?.toFixed(1)}%</span>
     },
     { key: 'paymentValue', header: 'Revenue', align: 'right' as const,
       render: (value: number) => <span className="font-bold text-green-600">{formatCurrency(value)}</span>
@@ -160,16 +160,16 @@ export const DiscountDataTable: React.FC<DiscountDataTableProps> = ({ data, filt
   const monthlyColumns = [
     { key: 'month', header: 'Month', align: 'left' as const },
     { key: 'transactions', header: 'Transactions', align: 'center' as const,
-      render: (value: number) => <Badge className="w-16 justify-center bg-blue-100 text-blue-800">{formatNumber(value)}</Badge>
+      render: (value: number) => <Badge className="w-16 justify-center bg-blue-100 text-blue-800"><span>{formatNumber(value)}</span></Badge>
     },
     { key: 'uniqueCustomers', header: 'Customers', align: 'center' as const,
-      render: (value: number) => <Badge className="w-16 justify-center bg-purple-100 text-purple-800">{formatNumber(value)}</Badge>
+      render: (value: number) => <Badge className="w-16 justify-center bg-purple-100 text-purple-800"><span>{formatNumber(value)}</span></Badge>
     },
     { key: 'totalDiscount', header: 'Total Discount', align: 'right' as const,
       render: (value: number) => <span className="font-bold text-red-600">{formatCurrency(value)}</span>
     },
     { key: 'avgDiscountPercent', header: 'Avg Discount %', align: 'right' as const,
-      render: (value: number) => <span className="font-medium text-orange-600">{value.toFixed(1)}%</span>
+      render: (value: number) => <span className="font-medium text-orange-600">{value?.toFixed(1)}%</span>
     },
     { key: 'totalRevenue', header: 'Total Revenue', align: 'right' as const,
       render: (value: number) => <span className="font-bold text-green-600">{formatCurrency(value)}</span>
@@ -179,19 +179,19 @@ export const DiscountDataTable: React.FC<DiscountDataTableProps> = ({ data, filt
   const categoryColumns = [
     { key: 'category', header: 'Category', align: 'left' as const },
     { key: 'transactions', header: 'Transactions', align: 'center' as const,
-      render: (value: number) => <Badge className="w-16 justify-center bg-blue-100 text-blue-800">{formatNumber(value)}</Badge>
+      render: (value: number) => <Badge className="w-16 justify-center bg-blue-100 text-blue-800"><span>{formatNumber(value)}</span></Badge>
     },
     { key: 'productsCount', header: 'Products', align: 'center' as const,
-      render: (value: number) => <Badge className="w-16 justify-center bg-green-100 text-green-800">{formatNumber(value)}</Badge>
+      render: (value: number) => <Badge className="w-16 justify-center bg-green-100 text-green-800"><span>{formatNumber(value)}</span></Badge>
     },
     { key: 'uniqueCustomers', header: 'Customers', align: 'center' as const,
-      render: (value: number) => <Badge className="w-16 justify-center bg-purple-100 text-purple-800">{formatNumber(value)}</Badge>
+      render: (value: number) => <Badge className="w-16 justify-center bg-purple-100 text-purple-800"><span>{formatNumber(value)}</span></Badge>
     },
     { key: 'totalDiscount', header: 'Total Discount', align: 'right' as const,
       render: (value: number) => <span className="font-bold text-red-600">{formatCurrency(value)}</span>
     },
     { key: 'avgDiscountPercent', header: 'Avg Discount %', align: 'right' as const,
-      render: (value: number) => <span className="font-medium text-orange-600">{value.toFixed(1)}%</span>
+      render: (value: number) => <span className="font-medium text-orange-600">{value?.toFixed(1)}%</span>
     },
     { key: 'totalRevenue', header: 'Total Revenue', align: 'right' as const,
       render: (value: number) => <span className="font-bold text-green-600">{formatCurrency(value)}</span>
@@ -202,13 +202,13 @@ export const DiscountDataTable: React.FC<DiscountDataTableProps> = ({ data, filt
     { key: 'customerName', header: 'Customer Name', align: 'left' as const },
     { key: 'customerEmail', header: 'Email', align: 'left' as const },
     { key: 'transactions', header: 'Transactions', align: 'center' as const,
-      render: (value: number) => <Badge className="w-16 justify-center bg-blue-100 text-blue-800">{formatNumber(value)}</Badge>
+      render: (value: number) => <Badge className="w-16 justify-center bg-blue-100 text-blue-800"><span>{formatNumber(value)}</span></Badge>
     },
     { key: 'totalDiscount', header: 'Total Discount', align: 'right' as const,
       render: (value: number) => <span className="font-bold text-red-600">{formatCurrency(value)}</span>
     },
     { key: 'avgDiscountPercent', header: 'Avg Discount %', align: 'right' as const,
-      render: (value: number) => <span className="font-medium text-orange-600">{value.toFixed(1)}%</span>
+      render: (value: number) => <span className="font-medium text-orange-600">{value?.toFixed(1)}%</span>
     },
     { key: 'totalRevenue', header: 'Total Revenue', align: 'right' as const,
       render: (value: number) => <span className="font-bold text-green-600">{formatCurrency(value)}</span>

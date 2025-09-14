@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, memo, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -18,8 +17,7 @@ import { formatNumber } from '@/utils/formatters';
 import { SourceDataModal } from '@/components/ui/SourceDataModal';
 import { useFilteredSessionsData } from '@/hooks/useFilteredSessionsData';
 import { SessionsFilterSection } from './SessionsFilterSection';
-import { ExportButton } from '@/components/ui/ExportButton';
-import { useSessionsFilters } from '@/contexts/SessionsFiltersContext';
+import { AdvancedExportButton } from '@/components/ui/AdvancedExportButton';
 
 const locations = [
   { id: 'all', name: 'All Locations', fullName: 'All Locations' },
@@ -51,19 +49,18 @@ export const SessionsSection: React.FC = () => {
   const { data, loading, error, refetch } = useSessionsData();
   const [activeLocation, setActiveLocation] = useState('all');
   const [openSource, setOpenSource] = useState(false);
-  const { filters } = useSessionsFilters();
 
-  // Use the filtered data hook to get data with global filters applied
-  const globallyFilteredData = useFilteredSessionsData(data || []);
+  // Use the filtered data hook instead of the original useMemo
+  const allFilteredData = useFilteredSessionsData(data || []);
 
   // Apply location filter on top of global filters
-  const finalFilteredData = useMemo(() => {
-    if (activeLocation === 'all') return globallyFilteredData;
+  const filteredData = useMemo(() => {
+    if (activeLocation === 'all') return allFilteredData;
     
     const selectedLocation = locations.find(loc => loc.id === activeLocation);
-    if (!selectedLocation) return globallyFilteredData;
+    if (!selectedLocation) return allFilteredData;
 
-    return globallyFilteredData.filter(session => {
+    return allFilteredData.filter(session => {
       if (session.location === selectedLocation.fullName) return true;
       
       const sessionLoc = session.location?.toLowerCase() || '';
@@ -75,21 +72,37 @@ export const SessionsSection: React.FC = () => {
       
       return false;
     });
-  }, [globallyFilteredData, activeLocation]);
+  }, [allFilteredData, activeLocation]);
 
-  // Memoized metrics calculation based on filtered data
+  // Memoized metrics calculation - Top metrics from each location
   const headerMetrics = useMemo(() => {
-    const totalSessions = finalFilteredData.length;
-    const totalAttendance = finalFilteredData.reduce((sum, session) => sum + (session.checkedInCount || 0), 0);
-    const avgFillRate = finalFilteredData.length > 0 ? 
-      Math.round(finalFilteredData.reduce((sum, session) => sum + (session.fillPercentage || 0), 0) / finalFilteredData.length) : 0;
+    const locationMetrics = locations.slice(1).map(location => { // Skip 'all' location
+      const locationData = (data || []).filter(session => {
+        const sessionLoc = session.location?.toLowerCase() || '';
+        const targetLoc = location.fullName.toLowerCase();
+        
+        if (location.id === 'kwality' && sessionLoc.includes('kwality')) return true;
+        if (location.id === 'supreme' && sessionLoc.includes('supreme')) return true;
+        if (location.id === 'kenkere' && sessionLoc.includes('kenkere')) return true;
+        
+        return session.location === location.fullName;
+      });
 
-    return {
-      totalSessions: formatNumber(totalSessions),
-      totalAttendance: totalAttendance.toLocaleString(),
-      avgFillRate: `${avgFillRate}%`
-    };
-  }, [finalFilteredData]);
+      const totalSessions = locationData.length;
+      const totalAttendance = locationData.reduce((sum, session) => sum + (session.checkedInCount || 0), 0);
+      const avgFillRate = locationData.length > 0 ? 
+        Math.round(locationData.reduce((sum, session) => sum + (session.fillPercentage || 0), 0) / locationData.length) : 0;
+
+      return {
+        location: location.name.split(',')[0], // Get first part of name
+        sessions: formatNumber(totalSessions),
+        attendance: totalAttendance.toLocaleString(),
+        fillRate: `${avgFillRate}%`
+      };
+    });
+
+    return locationMetrics;
+  }, [data]);
 
   const handleLocationChange = useCallback((value: string) => {
     setActiveLocation(value);
@@ -128,7 +141,7 @@ export const SessionsSection: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20">
       {/* Hero Section */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
+      <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white min-h-[500px]">
         <div className="absolute inset-0 bg-gradient-to-r from-blue-600/20 via-purple-600/20 to-indigo-600/20" />
         <div className="absolute inset-0">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_80%,_rgba(120,119,198,0.3),_transparent_50%)]" />
@@ -136,9 +149,9 @@ export const SessionsSection: React.FC = () => {
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_40%_40%,_rgba(120,119,198,0.2),_transparent_50%)]" />
         </div>
         
-        <div className="relative px-8 py-16">
+        <div className="relative px-8 py-20">
           <div className="max-w-7xl mx-auto">
-            {/* Dashboard Button */}
+            {/* Dashboard Button and Export Button */}
             <div className="flex items-center justify-between mb-8">
               <Button 
                 onClick={() => navigate('/')} 
@@ -149,6 +162,12 @@ export const SessionsSection: React.FC = () => {
                 <Home className="w-4 h-4" />
                 Dashboard
               </Button>
+              <AdvancedExportButton
+                sessionsData={filteredData as any}
+                defaultFileName="sessions-data"
+                variant="outline"
+                size="sm"
+              />
             </div>
             
             <div className="text-center space-y-6">
@@ -165,25 +184,31 @@ export const SessionsSection: React.FC = () => {
                 Comprehensive analysis of class performance, attendance patterns, and operational insights across all studio locations
               </p>
               
-              {/* Key Metrics Display - now using filtered data */}
-              <div className="flex items-center justify-center gap-12 mt-12">
-                <MetricDisplay 
-                  title="Total Sessions"
-                  value={headerMetrics.totalSessions}
-                  description="Total Sessions"
-                />
-                <div className="w-px h-16 bg-white/20" />
-                <MetricDisplay 
-                  title="Total Attendance"
-                  value={headerMetrics.totalAttendance}
-                  description="Total Attendance"
-                />
-                <div className="w-px h-16 bg-white/20" />
-                <MetricDisplay 
-                  title="Average Fill Rate"
-                  value={headerMetrics.avgFillRate}
-                  description="Avg Fill Rate"
-                />
+              {/* Top Location Metrics Display */}
+              <div className="flex items-center justify-center gap-12 mt-16">
+                {headerMetrics.map((metric, index) => (
+                  <React.Fragment key={metric.location}>
+                    <div className="text-center">
+                      <div className="text-3xl font-bold text-white mb-2">{metric.sessions}</div>
+                      <div className="text-sm text-slate-300 font-medium">{metric.location}</div>
+                      <div className="text-xs text-slate-400">Sessions</div>
+                    </div>
+                    {index < headerMetrics.length - 1 && <div className="w-px h-16 bg-white/20" />}
+                  </React.Fragment>
+                ))}
+              </div>
+              
+              {/* Secondary metrics row */}
+              <div className="flex items-center justify-center gap-12 mt-8">
+                {headerMetrics.map((metric, index) => (
+                  <React.Fragment key={`attendance-${metric.location}`}>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-white/90 mb-1">{metric.attendance}</div>
+                      <div className="text-xs text-slate-400">Total Attendance</div>
+                    </div>
+                    {index < headerMetrics.length - 1 && <div className="w-px h-12 bg-white/20" />}
+                  </React.Fragment>
+                ))}
               </div>
             </div>
           </div>
@@ -191,10 +216,10 @@ export const SessionsSection: React.FC = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-8 space-y-8">
-        {/* Filters Section - pass raw data for filter options but filtered data will be used by components */}
+        {/* Filters Section */}
         <SessionsFilterSection data={data || []} />
 
-        {/* Data Source Info and Export */}
+        {/* Data Source Info */}
         <div className="flex justify-between items-center animate-fade-in">
           <div className="flex items-center gap-2">
             <Database className="w-5 h-5 text-indigo-600" />
@@ -203,77 +228,62 @@ export const SessionsSection: React.FC = () => {
               149ILDqovzZA6FRUJKOwzutWdVqmqWBtWPfzG3A0zxTI
             </Badge>
           </div>
-          <div className="flex items-center gap-2">
-            <ExportButton
-              containerId="sessions-export-container"
-              defaultFilename={`Sessions_${activeLocation}_${new Date().toISOString().split('T')[0]}`}
-              location={locations.find(loc => loc.id === activeLocation)?.name}
-              dateRange={filters.dateRange.start && filters.dateRange.end ? {
-                start: filters.dateRange.start,
-                end: filters.dateRange.end
-              } : undefined}
-              size="sm"
-            />
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-2 text-indigo-700 border-indigo-200 hover:bg-indigo-50"
-              onClick={() => setOpenSource(true)}
-            >
-              <Eye className="w-4 h-4" />
-              View Source Data
-            </Button>
-          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2 text-indigo-700 border-indigo-200 hover:bg-indigo-50"
+            onClick={() => setOpenSource(true)}
+          >
+            <Eye className="w-4 h-4" />
+            View Source Data
+          </Button>
         </div>
 
-        {/* Location Tabs and Content - Wrapped for export */}
-        <div id="sessions-export-container">
-          <Card className={`${designTokens.card.background} ${designTokens.card.shadow} ${designTokens.card.border} overflow-hidden`}>
-            <CardContent className="p-2">
-              <Tabs value={activeLocation} onValueChange={handleLocationChange} className="w-full">
-                <TabsList className="grid w-full grid-cols-4 bg-gradient-to-r from-slate-100 to-slate-200 p-2 rounded-2xl h-auto gap-2">
-                  {locations.map((location) => (
-                    <TabsTrigger
-                      key={location.id}
-                      value={location.id}
-                      className="rounded-xl px-6 py-4 font-semibold text-sm transition-all duration-300"
-                    >
-                      <LocationTab location={location} isActive={activeLocation === location.id} />
-                    </TabsTrigger>
-                  ))}
-                </TabsList>
-
+        {/* Location Tabs and Content */}
+        <Card className={`${designTokens.card.background} ${designTokens.card.shadow} ${designTokens.card.border} overflow-hidden`}>
+          <CardContent className="p-2">
+            <Tabs value={activeLocation} onValueChange={handleLocationChange} className="w-full">
+              <TabsList className="grid w-full grid-cols-4 bg-gradient-to-r from-slate-100 to-slate-200 p-2 rounded-2xl h-auto gap-2">
                 {locations.map((location) => (
-                  <TabsContent key={location.id} value={location.id} className="space-y-8 mt-8">
-                    {/* All components now receive finalFilteredData which includes both global filters and location filters */}
-                    <SessionsMetricCards data={finalFilteredData} />
-                    
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                      <ImprovedSessionsTopBottomLists 
-                        data={finalFilteredData} 
-                        title="Top Performing Classes"
-                        type="classes"
-                        variant="top"
-                        initialCount={10}
-                      />
-                      <ImprovedSessionsTopBottomLists 
-                        data={finalFilteredData} 
-                        title="Bottom Performing Classes"
-                        type="classes"
-                        variant="bottom"
-                        initialCount={10}
-                      />
-                    </div>
-                    
-                    <SessionsAttendanceAnalytics data={finalFilteredData} />
-                    <ClassFormatAnalysis data={finalFilteredData} />
-                    <SessionsGroupedTable data={finalFilteredData} />
-                  </TabsContent>
+                  <TabsTrigger
+                    key={location.id}
+                    value={location.id}
+                    className="rounded-xl px-6 py-4 font-semibold text-sm transition-all duration-300"
+                  >
+                    <LocationTab location={location} isActive={activeLocation === location.id} />
+                  </TabsTrigger>
                 ))}
-              </Tabs>
-            </CardContent>
-          </Card>
-        </div>
+              </TabsList>
+
+              {locations.map((location) => (
+                <TabsContent key={location.id} value={location.id} className="space-y-8 mt-8">
+                  <SessionsMetricCards data={filteredData} />
+                  
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <ImprovedSessionsTopBottomLists 
+                      data={filteredData} 
+                      title="Top Performing Classes"
+                      type="classes"
+                      variant="top"
+                      initialCount={10}
+                    />
+                    <ImprovedSessionsTopBottomLists 
+                      data={filteredData} 
+                      title="Bottom Performing Classes"
+                      type="classes"
+                      variant="bottom"
+                      initialCount={10}
+                    />
+                  </div>
+                  
+                  <SessionsAttendanceAnalytics data={filteredData} />
+                  <ClassFormatAnalysis data={filteredData} />
+                  <SessionsGroupedTable data={filteredData} />
+                </TabsContent>
+              ))}
+            </Tabs>
+          </CardContent>
+        </Card>
       </div>
 
       <SourceDataModal

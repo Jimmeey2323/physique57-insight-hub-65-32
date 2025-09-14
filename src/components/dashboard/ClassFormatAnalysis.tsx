@@ -36,9 +36,18 @@ export const ClassFormatAnalysis: React.FC<ClassFormatAnalysisProps> = ({ data }
   const [selectedFormat, setSelectedFormat] = useState<string>('all');
   const [openFormats, setOpenFormats] = useState<Set<string>>(new Set());
 
-  // Use the already filtered data passed from parent - no additional filtering needed
+  // Filter out unwanted sessions
   const filteredData = useMemo(() => {
-    return data; // Data is already filtered by SessionsSection
+    return data.filter(session => {
+      const className = session.cleanedClass || '';
+      const excludeKeywords = ['Hosted', 'P57', 'X'];
+      
+      const hasExcludedKeyword = excludeKeywords.some(keyword => 
+        className.toLowerCase().includes(keyword.toLowerCase())
+      );
+      
+      return !hasExcludedKeyword;
+    });
   }, [data]);
 
   // Function to normalize class names to group similar formats
@@ -272,8 +281,8 @@ export const ClassFormatAnalysis: React.FC<ClassFormatAnalysisProps> = ({ data }
                   </CollapsibleTrigger>
                   
                   <CollapsibleContent>
-                     <CardContent className="pt-0">
-                       <Table data-export-table data-table-name="Class Format Analysis">
+                    <CardContent className="pt-0">
+                      <Table>
                         <TableHeader>
                           <TableRow className="bg-gradient-to-r from-gray-50 to-purple-50">
                             <TableHead className="font-semibold">Class Name</TableHead>
@@ -328,85 +337,75 @@ export const ClassFormatAnalysis: React.FC<ClassFormatAnalysisProps> = ({ data }
                         <TableBody>
                           {format.classesArray.map((classGroup: any, index: number) => (
                             <TableRow key={`${format.className}-${index}`} className="hover:bg-gray-50/80">
-                               <TableCell>
-                                 <Badge variant="outline" className="min-w-[120px] justify-center bg-purple-50 text-purple-700 font-medium">
-                                   {classGroup.className}
-                                 </Badge>
-                               </TableCell>
-                               <TableCell>
-                                 <Badge variant="outline" className="min-w-[80px] justify-center bg-blue-50 text-blue-700">
-                                   {classGroup.dayOfWeek}
-                                 </Badge>
-                               </TableCell>
-                               <TableCell>
-                                 <div className="flex items-center gap-1 justify-center">
-                                   <Clock className="w-4 h-4 text-gray-500" />
-                                   <span className="font-medium">{classGroup.time}</span>
-                                 </div>
-                               </TableCell>
-                               <TableCell>
-                                 <div className="flex items-center gap-1 justify-center">
-                                   <MapPin className="w-4 h-4 text-gray-500" />
-                                   <span className="truncate max-w-32 font-medium">{classGroup.location}</span>
-                                 </div>
-                               </TableCell>
-                               <TableCell>
-                                 <Badge variant="outline" className="min-w-[100px] justify-center bg-green-50 text-green-700">
-                                   {classGroup.trainerName}
-                                 </Badge>
-                               </TableCell>
-                               <TableCell className="text-center">
-                                 <Badge variant="secondary" className="min-w-[60px] justify-center bg-slate-100 text-slate-700 font-bold">
-                                   {classGroup.sessions}
-                                 </Badge>
-                               </TableCell>
-                               <TableCell className="text-center">
-                                 <Badge variant="default" className="min-w-[60px] justify-center bg-blue-100 text-blue-700 font-bold">
-                                   <Users className="w-3 h-3 mr-1" />
-                                   {classGroup.attendees}
-                                 </Badge>
-                               </TableCell>
-                               <TableCell className="text-center">
-                                 <Badge variant="default" className="min-w-[60px] justify-center bg-emerald-100 text-emerald-700 font-bold">
-                                   {classGroup.classAverage.toFixed(1)}
-                                 </Badge>
-                               </TableCell>
-                               <TableCell className="text-center">
-                                 {classGroup.emptyClasses > 0 ? (
-                                   <Badge variant="outline" className="min-w-[60px] justify-center bg-red-50 text-red-700">
-                                     <AlertTriangle className="w-3 h-3 mr-1" />
-                                     {classGroup.emptyClasses}
-                                   </Badge>
-                                 ) : (
-                                   <Badge variant="outline" className="min-w-[60px] justify-center bg-green-50 text-green-700">
-                                     ✓ 0
-                                   </Badge>
-                                 )}
-                               </TableCell>
-                               <TableCell className="text-center">
-                                 <Badge 
-                                   className={`min-w-[70px] justify-center font-bold ${
-                                     classGroup.fillRate > 80 
-                                       ? 'bg-green-100 text-green-700' 
-                                       : classGroup.fillRate > 60 
-                                         ? 'bg-yellow-100 text-yellow-700' 
-                                         : 'bg-red-100 text-red-700'
-                                   }`}
-                                 >
-                                   {classGroup.fillRate.toFixed(1)}%
-                                 </Badge>
-                               </TableCell>
-                               <TableCell className="text-center">
-                                 <Badge variant="default" className="min-w-[80px] justify-center bg-green-100 text-green-700 font-bold">
-                                   <DollarSign className="w-3 h-3 mr-1" />
-                                   {formatCurrency(classGroup.revenue)}
-                                 </Badge>
-                               </TableCell>
-                               <TableCell className="text-center">
-                                 <Badge variant="outline" className="min-w-[60px] justify-center bg-orange-50 text-orange-700">
-                                   {classGroup.avgLateCancellations.toFixed(1)}
-                                 </Badge>
-                               </TableCell>
+                              <TableCell>
+                                <Badge variant="outline" className="bg-purple-50 text-purple-700 font-medium">
+                                  {classGroup.className}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant="outline" className="bg-blue-50 text-blue-700">
+                                  {classGroup.dayOfWeek}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-1">
+                                  <Clock className="w-4 h-4 text-gray-500" />
+                                  <span>{classGroup.time}</span>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-1">
+                                  <MapPin className="w-4 h-4 text-gray-500" />
+                                  <span className="truncate max-w-32">{classGroup.location}</span>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant="outline" className="bg-green-50 text-green-700">
+                                  {classGroup.trainerName}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-center font-medium">
+                                <Badge variant="default" className="bg-gray-100 text-gray-700">
+                                  {classGroup.sessions}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-center font-bold text-blue-600">
+                                <div className="flex items-center justify-center gap-1">
+                                  <Users className="w-4 h-4" />
+                                  {classGroup.attendees}
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-center font-bold text-green-600">
+                                {classGroup.classAverage.toFixed(1)}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                {classGroup.emptyClasses > 0 ? (
+                                  <Badge variant="outline" className="bg-red-50 text-red-700">
+                                    <AlertTriangle className="w-3 h-3 mr-1" />
+                                    {classGroup.emptyClasses}
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="outline" className="bg-green-50 text-green-700">
+                                    0
+                                  </Badge>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <Badge 
+                                  variant={classGroup.fillRate > 80 ? 'default' : classGroup.fillRate > 60 ? 'secondary' : 'outline'}
+                                  className={classGroup.fillRate > 80 ? 'bg-green-100 text-green-700' : classGroup.fillRate > 60 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}
+                                >
+                                  {classGroup.fillRate.toFixed(1)}%
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-center font-medium">
+                                {formatCurrency(classGroup.revenue)}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <Badge variant="outline">
+                                  {classGroup.avgLateCancellations.toFixed(1)}
+                                </Badge>
+                              </TableCell>
                             </TableRow>
                           ))}
                         </TableBody>

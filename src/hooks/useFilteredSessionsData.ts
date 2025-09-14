@@ -1,25 +1,35 @@
 
-import { useMemo } from 'react';
+import { useMemo, useContext } from 'react';
 import { SessionData } from '@/hooks/useSessionsData';
 import { useSessionsFilters } from '@/contexts/SessionsFiltersContext';
 
 export const useFilteredSessionsData = (data: SessionData[]) => {
-  const { filters } = useSessionsFilters();
+  // Try to get filters context, but don't throw if it doesn't exist
+  let filters = null;
+  try {
+    const context = useSessionsFilters();
+    filters = context.filters;
+  } catch (error) {
+    // If we're not within a SessionsFiltersProvider, just use the data as-is
+    filters = null;
+  }
 
   const filteredData = useMemo(() => {
     if (!data) return [];
 
     return data.filter(session => {
-      // Basic exclusions (existing logic)
-      const className = session.cleanedClass || '';
-      const excludeKeywords = ['Hosted', 'P57', 'X'];
+      // Only exclude sessions that are clearly test/invalid data
+      // Allow empty sessions and low attendance sessions to be counted
+      const sessionName = session.sessionName?.toLowerCase() || '';
       
-      const hasExcludedKeyword = excludeKeywords.some(keyword => 
-        className.toLowerCase().includes(keyword.toLowerCase())
-      );
-      
-      if (hasExcludedKeyword || session.checkedInCount < 2) {
+      // Only exclude if it's clearly test data or invalid
+      if (sessionName.includes('test') || sessionName.includes('demo')) {
         return false;
+      }
+
+      // Only apply global filters if we have a filter context
+      if (!filters) {
+        return true; // No filters available, return all data that passed basic exclusions
       }
 
       // Apply global filters
@@ -39,52 +49,46 @@ export const useFilteredSessionsData = (data: SessionData[]) => {
         return false;
       }
 
-      // Date range filter
+      // Date range filter with improved parsing
       if (filters.dateRange.start || filters.dateRange.end) {
-        if (!session.date) return false;
-        
-        // Handle different date formats and ensure proper parsing
         let sessionDate: Date;
         
-        // Try multiple date parsing strategies for string dates
-        sessionDate = new Date(session.date);
-        
-        // If invalid, try parsing as DD/MM/YYYY or MM/DD/YYYY
-        if (isNaN(sessionDate.getTime())) {
-          const parts = session.date.split(/[/-]/);
+        // Handle different date formats from the sheets
+        if (session.date.includes('/')) {
+          // Handle DD/MM/YYYY format
+          const parts = session.date.split('/');
           if (parts.length === 3) {
-            // Try DD/MM/YYYY format first
-            const ddmmyyyy = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
-            if (!isNaN(ddmmyyyy.getTime())) {
-              sessionDate = ddmmyyyy;
-            } else {
-              // Try MM/DD/YYYY format
-              const mmddyyyy = new Date(parseInt(parts[2]), parseInt(parts[0]) - 1, parseInt(parts[1]));
-              if (!isNaN(mmddyyyy.getTime())) {
-                sessionDate = mmddyyyy;
-              }
-            }
+            const day = parseInt(parts[0]);
+            const month = parseInt(parts[1]);
+            const year = parseInt(parts[2]);
+            sessionDate = new Date(year, month - 1, day);
+          } else {
+            sessionDate = new Date(session.date);
           }
+        } else {
+          // Handle YYYY-MM-DD format
+          sessionDate = new Date(session.date);
         }
         
-        // Skip if date is still invalid
+        // Ensure we have a valid date
         if (isNaN(sessionDate.getTime())) {
-          return false;
+          console.warn('Invalid date format:', session.date);
+          return true; // Don't exclude if we can't parse the date
         }
         
-        // Normalize dates to midnight for comparison
-        const normalizedSessionDate = new Date(sessionDate.getFullYear(), sessionDate.getMonth(), sessionDate.getDate());
+        // Compare dates (ignore time component)
+        const sessionDateOnly = new Date(sessionDate.getFullYear(), sessionDate.getMonth(), sessionDate.getDate());
         
         if (filters.dateRange.start) {
-          const normalizedStart = new Date(filters.dateRange.start.getFullYear(), filters.dateRange.start.getMonth(), filters.dateRange.start.getDate());
-          if (normalizedSessionDate < normalizedStart) {
+          const startDateOnly = new Date(filters.dateRange.start.getFullYear(), filters.dateRange.start.getMonth(), filters.dateRange.start.getDate());
+          if (sessionDateOnly < startDateOnly) {
             return false;
           }
         }
         
         if (filters.dateRange.end) {
-          const normalizedEnd = new Date(filters.dateRange.end.getFullYear(), filters.dateRange.end.getMonth(), filters.dateRange.end.getDate());
-          if (normalizedSessionDate > normalizedEnd) {
+          const endDateOnly = new Date(filters.dateRange.end.getFullYear(), filters.dateRange.end.getMonth(), filters.dateRange.end.getDate());
+          if (sessionDateOnly > endDateOnly) {
             return false;
           }
         }

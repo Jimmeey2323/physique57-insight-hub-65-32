@@ -2,12 +2,10 @@ import React, { useMemo, useState, useCallback } from 'react';
 import { SalesData, FilterOptions, YearOnYearMetricType, EnhancedYearOnYearTableProps } from '@/types/dashboard';
 import { YearOnYearMetricTabs } from './YearOnYearMetricTabs';
 import { formatCurrency, formatNumber, formatPercentage } from '@/utils/formatters';
-import { ChevronDown, ChevronRight, RefreshCw, Filter, Calendar, TrendingUp, Download, Edit3, Save, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, RefreshCw, Filter, Calendar, TrendingUp, TrendingDown, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Textarea } from '@/components/ui/textarea';
-
 const groupDataByCategory = (data: SalesData[]) => {
   return data.reduce((acc: Record<string, any>, item) => {
     const category = item.cleanedCategory || 'Uncategorized';
@@ -22,7 +20,6 @@ const groupDataByCategory = (data: SalesData[]) => {
     return acc;
   }, {});
 };
-
 export const EnhancedYearOnYearTable: React.FC<EnhancedYearOnYearTableProps> = ({
   data,
   filters = {
@@ -43,11 +40,10 @@ export const EnhancedYearOnYearTable: React.FC<EnhancedYearOnYearTableProps> = (
 }) => {
   const [selectedMetric, setSelectedMetric] = useState<YearOnYearMetricType>(initialMetric);
   const [showFilters, setShowFilters] = useState(false);
-  // Initialize with empty set to have all groups expanded by default
   const [localCollapsedGroups, setLocalCollapsedGroups] = useState<Set<string>>(new Set());
-  const [isEditingSummary, setIsEditingSummary] = useState(false);
-  const [summaryText, setSummaryText] = useState('• Revenue shows strong growth in Q2 2025 compared to 2024\n• Product categories demonstrate varying performance patterns\n• Seasonal trends indicate peak performance in specific months\n• Year-over-year metrics suggest positive business trajectory');
 
+  // Initialize all groups as expanded by default
+  const [isInitialized, setIsInitialized] = useState(false);
   const parseDate = (dateStr: string): Date | null => {
     if (!dateStr) return null;
 
@@ -62,49 +58,50 @@ export const EnhancedYearOnYearTable: React.FC<EnhancedYearOnYearTableProps> = (
     const date = new Date(dateStr);
     return isNaN(date.getTime()) ? null : date;
   };
-
   const getMetricValue = (items: SalesData[], metric: YearOnYearMetricType) => {
     if (!items.length) return 0;
-    
+    const totalRevenue = items.reduce((sum, item) => sum + (item.paymentValue || 0), 0);
+    const totalTransactions = items.length;
+    const uniqueMembers = new Set(items.map(item => item.memberId)).size;
+    const totalUnits = items.length;
+    const totalDiscount = items.reduce((sum, item) => sum + (item.discountAmount || 0), 0);
+    const avgDiscountPercentage = items.length > 0 ? 
+      items.reduce((sum, item) => sum + (item.discountPercentage || 0), 0) / items.length : 0;
+
     switch (metric) {
       case 'revenue':
-        // Ensure we're summing the actual payment values correctly
-        return items.reduce((sum, item) => {
-          const value = Number(item.paymentValue) || 0;
-          return sum + value;
-        }, 0);
+        return totalRevenue;
       case 'transactions':
-        return items.length;
+        return totalTransactions;
       case 'members':
-        return new Set(items.map(item => item.memberId)).size;
+        return uniqueMembers;
       case 'units':
-        return items.length; // Each sale item is one unit
+        return totalUnits;
+      // Each sale item is one unit
       case 'atv':
-        const totalRevenue = items.reduce((sum, item) => sum + (Number(item.paymentValue) || 0), 0);
-        return items.length > 0 ? totalRevenue / items.length : 0;
+        return totalTransactions > 0 ? totalRevenue / totalTransactions : 0;
       case 'auv':
-        const revenue = items.reduce((sum, item) => sum + (Number(item.paymentValue) || 0), 0);
-        const uniqueMembers = new Set(items.map(item => item.memberId)).size;
-        return uniqueMembers > 0 ? revenue / uniqueMembers : 0;
+        return uniqueMembers > 0 ? totalRevenue / uniqueMembers : 0;
       case 'asv':
-        const sessionRevenue = items.reduce((sum, item) => sum + (Number(item.paymentValue) || 0), 0);
-        const sessions = new Set(items.map(item => item.saleItemId)).size;
-        return sessions > 0 ? sessionRevenue / sessions : 0;
+        return new Set(items.map(item => item.saleItemId)).size > 0 ? totalRevenue / new Set(items.map(item => item.saleItemId)).size : 0;
       case 'upt':
         const totalItems = items.length;
-        const totalTransactions = new Set(items.map(item => item.paymentTransactionId)).size;
-        return totalTransactions > 0 ? totalItems / totalTransactions : 0;
+        const totalTransactionsCount = new Set(items.map(item => item.paymentTransactionId)).size;
+        return totalTransactionsCount > 0 ? totalItems / totalTransactionsCount : 0;
       case 'vat':
-        return items.reduce((sum, item) => sum + (Number(item.paymentVAT) || 0), 0);
+        return items.reduce((sum, item) => sum + (item.paymentVAT || 0), 0);
       case 'netRevenue':
-        const gross = items.reduce((sum, item) => sum + (Number(item.paymentValue) || 0), 0);
-        const vat = items.reduce((sum, item) => sum + (Number(item.paymentVAT) || 0), 0);
+        const gross = totalRevenue;
+        const vat = items.reduce((sum, item) => sum + (item.paymentVAT || 0), 0);
         return gross - vat;
+      case 'discountValue':
+        return totalDiscount;
+      case 'discountPercentage':
+        return avgDiscountPercentage;
       default:
         return 0;
     }
   };
-
   const formatMetricValue = (value: number, metric: YearOnYearMetricType) => {
     switch (metric) {
       case 'revenue':
@@ -113,6 +110,7 @@ export const EnhancedYearOnYearTable: React.FC<EnhancedYearOnYearTableProps> = (
       case 'atv':
       case 'vat':
       case 'netRevenue':
+      case 'discountValue':
         return formatCurrency(value);
       case 'transactions':
       case 'members':
@@ -120,9 +118,17 @@ export const EnhancedYearOnYearTable: React.FC<EnhancedYearOnYearTableProps> = (
         return formatNumber(value);
       case 'upt':
         return value.toFixed(2);
+      case 'discountPercentage':
+        return `${value.toFixed(1)}%`;
       default:
         return formatNumber(value);
     }
+  };
+
+  const getGrowthPercentage = (current: number, previous: number) => {
+    if (previous === 0 && current === 0) return null;
+    if (previous === 0) return '+100';
+    return ((current - previous) / previous * 100).toFixed(1);
   };
 
   // Get all data for historic comparison (include 2024 data regardless of filters)
@@ -135,8 +141,8 @@ export const EnhancedYearOnYearTable: React.FC<EnhancedYearOnYearTableProps> = (
       if (filters?.product?.length > 0 && !filters.product.includes(item.cleanedProduct)) return false;
       if (filters?.soldBy?.length > 0 && !filters.soldBy.includes(item.soldBy)) return false;
       if (filters?.paymentMethod?.length > 0 && !filters.paymentMethod.includes(item.paymentMethod)) return false;
-      if (filters?.minAmount !== undefined && Number(item.paymentValue) < filters.minAmount) return false;
-      if (filters?.maxAmount !== undefined && Number(item.paymentValue) > filters.maxAmount) return false;
+      if (filters?.minAmount !== undefined && item.paymentValue < filters.minAmount) return false;
+      if (filters?.maxAmount !== undefined && item.paymentValue > filters.maxAmount) return false;
       return true;
     });
   }, [data, filters]);
@@ -170,7 +176,6 @@ export const EnhancedYearOnYearTable: React.FC<EnhancedYearOnYearTableProps> = (
     }
     return months;
   }, []);
-
   const processedData = useMemo(() => {
     const grouped = groupDataByCategory(allHistoricData);
     const categories = Object.entries(grouped).map(([category, products]) => {
@@ -209,7 +214,7 @@ export const EnhancedYearOnYearTable: React.FC<EnhancedYearOnYearTableProps> = (
         })
       };
 
-      // Calculate category totals for each month - sum all products in the category
+      // Calculate category totals for each month
       const categoryMonthlyValues: Record<string, number> = {};
       monthlyData.forEach(({
         key
@@ -222,22 +227,17 @@ export const EnhancedYearOnYearTable: React.FC<EnhancedYearOnYearTableProps> = (
       };
     });
 
+    // Initialize all groups as collapsed by default if not already initialized
+    if (!isInitialized && categories.length > 0) {
+      // Start with all groups expanded
+      setLocalCollapsedGroups(new Set());
+      setIsInitialized(true);
+    }
     return categories;
-  }, [allHistoricData, selectedMetric, monthlyData]);
-
-  // Calculate totals row data - sum across all categories
-  const totalsData = useMemo(() => {
-    const monthlyTotals: Record<string, number> = {};
-    monthlyData.forEach(({ key }) => {
-      monthlyTotals[key] = processedData.reduce((sum, category) => sum + (category.monthlyValues[key] || 0), 0);
-    });
-    return monthlyTotals;
-  }, [processedData, monthlyData]);
-
+  }, [allHistoricData, selectedMetric, monthlyData, isInitialized]);
   const handleRefresh = useCallback(() => {
     window.location.reload();
   }, []);
-
   const handleExportData = useCallback(() => {
     const csvContent = processedData.map(categoryGroup => {
       const categoryRow = [categoryGroup.category, ...monthlyData.map(({
@@ -257,7 +257,6 @@ export const EnhancedYearOnYearTable: React.FC<EnhancedYearOnYearTableProps> = (
     a.download = `year-on-year-${selectedMetric}-data.csv`;
     a.click();
   }, [processedData, monthlyData, selectedMetric]);
-
   const handleQuickFilter = useCallback((filterType: string) => {
     console.log(`Applied quick filter: ${filterType}`);
 
@@ -281,7 +280,6 @@ export const EnhancedYearOnYearTable: React.FC<EnhancedYearOnYearTableProps> = (
         break;
     }
   }, []);
-
   const handleGroupToggle = useCallback((category: string) => {
     const newCollapsed = new Set(localCollapsedGroups);
     if (newCollapsed.has(category)) {
@@ -291,28 +289,6 @@ export const EnhancedYearOnYearTable: React.FC<EnhancedYearOnYearTableProps> = (
     }
     setLocalCollapsedGroups(newCollapsed);
   }, [localCollapsedGroups]);
-
-  const handleSaveSummary = () => {
-    localStorage.setItem('yoy-table-summary', summaryText);
-    setIsEditingSummary(false);
-  };
-
-  const handleCancelEdit = () => {
-    const saved = localStorage.getItem('yoy-table-summary');
-    if (saved) {
-      setSummaryText(saved);
-    }
-    setIsEditingSummary(false);
-  };
-
-  // Load saved summary on mount
-  React.useEffect(() => {
-    const saved = localStorage.getItem('yoy-table-summary');
-    if (saved) {
-      setSummaryText(saved);
-    }
-  }, []);
-
   const quickFilters = [{
     label: 'Last 6 Months',
     action: () => handleQuickFilter('last6months'),
@@ -330,7 +306,6 @@ export const EnhancedYearOnYearTable: React.FC<EnhancedYearOnYearTableProps> = (
     action: () => handleQuickFilter('clearall'),
     variant: 'destructive' as const
   }];
-
   return <Card className="bg-gradient-to-br from-white via-slate-50/30 to-white border-0 shadow-xl">
       <CardHeader className="pb-4">
         <div className="flex flex-col gap-4">
@@ -346,6 +321,8 @@ export const EnhancedYearOnYearTable: React.FC<EnhancedYearOnYearTableProps> = (
             </div>
             
             <div className="flex items-center gap-2">
+              
+              
               <Button variant="outline" size="sm" onClick={handleRefresh} className="flex items-center gap-2 hover:bg-purple-50 hover:text-purple-700">
                 <RefreshCw className="w-4 h-4" />
                 Refresh
@@ -353,6 +330,9 @@ export const EnhancedYearOnYearTable: React.FC<EnhancedYearOnYearTableProps> = (
             </div>
           </div>
 
+          {/* Quick Filter Buttons */}
+          
+          
           <YearOnYearMetricTabs value={selectedMetric} onValueChange={setSelectedMetric} className="w-full" />
         </div>
       </CardHeader>
@@ -360,9 +340,9 @@ export const EnhancedYearOnYearTable: React.FC<EnhancedYearOnYearTableProps> = (
       <CardContent className="p-0">
         <div className="overflow-x-auto">
           <table className="min-w-full bg-white border-t border-gray-200 rounded-lg">
-            <thead className="bg-gradient-to-r from-purple-700 to-purple-900 text-white font-semibold text-sm uppercase tracking-wider px-4 py-2 sticky top-0 z-20">
-              <tr className="bg-gradient-to-r from-blue-700 to-indigo-900 text-white font-semibold text-sm uppercase tracking-wider px-4 py-2 rounded-md">
-                <th className="bg-gradient-to-r from-blue-700 to-blue-700 text-white font-semibold text-sm uppercase tracking-wider px-4 py-2 rounded-none">
+            <thead className="bg-gradient-to-r from-purple-700 to-purple-900 text-white font-semibold text-sm uppercase tracking-wider sticky top-0 z-30">
+              <tr className="bg-gradient-to-r from-blue-800 to-indigo-900 text-white font-semibold text-sm uppercase tracking-wider">
+                <th className="bg-gradient-to-r from-blue-800 to-blue-800 text-white font-semibold text-sm uppercase tracking-wider px-4 py-2 sticky left-0 z-40">
                   Product/Category
                 </th>
                 {monthlyData.map(({
@@ -382,20 +362,75 @@ export const EnhancedYearOnYearTable: React.FC<EnhancedYearOnYearTableProps> = (
             <tbody>
               {processedData.map(categoryGroup => <React.Fragment key={categoryGroup.category}>
                   <tr onClick={() => handleGroupToggle(categoryGroup.category)} className="bg-white hover:bg-gray-100 cursor-pointer border-b border-gray-200 group transition-colors duration-200 ease-in-out">
-                    <td className="py-4 font-semibold text-gray-800 group-hover:text-gray-900 bg-white group-hover:bg-gray-100 sticky left-0 z-10 transition-colors duration-200 ease-in-out px-[10px] min-w-80 text-sm">
+                    <td className="py-2 font-semibold text-gray-800 group-hover:text-gray-900 bg-white group-hover:bg-gray-100 sticky left-0 z-20 transition-colors duration-200 ease-in-out px-[10px] min-w-80 text-sm max-h-[35px] h-[35px] overflow-hidden">
                       <div className="flex justify-between items-center min-w-full text-md text-bold">
                         {localCollapsedGroups.has(categoryGroup.category) ? <ChevronRight className="w-4 h-4 mr-2 text-gray-500 transition-transform duration-200" /> : <ChevronDown className="w-4 h-4 mr-2 text-gray-500 transition-transform duration-200" />}
                         {categoryGroup.category}
-                        <Badge variant="secondary" className="ml-auto text-sm text-white bg-blue-900 min-w-32 text-right py-1 capitalize rounded-lg px-[12px]">
+                        <Badge variant="secondary" className="ml-auto text-sm text-yellow-300 min-w-12 bg-slate-950 rounded-xl">
                           {categoryGroup.products.length} products
                         </Badge>
                       </div>
                     </td>
-                    {monthlyData.map(({
-                  key
-                }) => <td key={key} className="px-4 py-4 text-center font-semibold text-gray-900 text-sm">
+                  {monthlyData.map(({
+                key,
+                year,
+                month,
+                display
+              }, monthIndex) => {
+                const current = categoryGroup.monthlyValues[key] || 0;
+                const previous = monthIndex > 0 ? categoryGroup.monthlyValues[monthlyData[monthIndex - 1].key] || 0 : 0;
+                const growthPercentage = getGrowthPercentage(current, previous);
+                
+                return <td 
+                  key={key}
+                  className="px-4 py-2 text-center font-semibold text-gray-900 text-sm hover:bg-blue-100 cursor-pointer transition-colors max-h-[35px] h-[35px] overflow-hidden"
+                  title={growthPercentage ? `${growthPercentage}% vs last year` : ''}
+                  onClick={(e) => {
+                    e.stopPropagation(); // Prevent group toggle
+                    
+                    // Category group cell click for specific month
+                    const categoryMonthData = data.filter(item => {
+                      const itemDate = parseDate(item.paymentDate);
+                      if (!itemDate) return false;
+                      const matchesCategory = item.cleanedCategory === categoryGroup.category;
+                      const matchesMonth = itemDate.getFullYear() === year && itemDate.getMonth() + 1 === month;
+                      return matchesCategory && matchesMonth;
+                    });
+                    
+                    const monthRevenue = categoryMonthData.reduce((sum, item) => sum + (item.paymentValue || 0), 0);
+                    const monthTransactions = categoryMonthData.length;
+                    const monthCustomers = new Set(categoryMonthData.map(item => item.memberId || item.customerEmail)).size;
+                    
+                    const categoryCellData = {
+                      name: `${categoryGroup.category} - ${display}`,
+                      category: categoryGroup.category,
+                      totalRevenue: monthRevenue,
+                      grossRevenue: monthRevenue,
+                      netRevenue: monthRevenue,
+                      totalValue: monthRevenue,
+                      totalCurrent: monthRevenue,
+                      metricValue: monthRevenue,
+                      transactions: monthTransactions,
+                      totalTransactions: monthTransactions,
+                      uniqueMembers: monthCustomers,
+                      totalCustomers: monthCustomers,
+                      rawData: categoryMonthData,
+                      filteredTransactionData: categoryMonthData,
+                      isDynamic: true,
+                      calculatedFromFiltered: true,
+                      isGroupCell: true,
+                      cellSpecific: true,
+                      month: display,
+                      monthKey: key
+                    };
+                    
+                    console.log(`Category group cell click: ${categoryGroup.category} - ${display}: ${monthTransactions} transactions, ${monthRevenue} revenue`);
+                    onRowClick && onRowClick(categoryCellData);
+                  }}
+                >
                         {formatMetricValue(categoryGroup.monthlyValues[key] || 0, selectedMetric)}
-                      </td>)}
+                      </td>;
+                })}
                   </tr>
 
                   {!localCollapsedGroups.has(categoryGroup.category) && categoryGroup.products.map(product => <tr key={`${categoryGroup.category}-${product.product}`} className="hover:bg-blue-50 cursor-pointer border-b border-gray-100 transition-colors duration-200" onClick={() => onRowClick && onRowClick(product.rawData)}>
@@ -408,87 +443,89 @@ export const EnhancedYearOnYearTable: React.FC<EnhancedYearOnYearTableProps> = (
                         </div>
                       </td>
                       {monthlyData.map(({
-                  key
-                }) => <td key={key} className="px-4 py-3 text-center text-sm text-gray-900 font-mono">
+                  key,
+                  year,
+                  month,
+                  display
+                }) => 
+                        <td 
+                          key={key} 
+                          className="px-4 py-3 text-center text-sm text-gray-900 font-mono hover:bg-blue-50 cursor-pointer transition-colors"
+                          onClick={(e) => {
+                            e.stopPropagation(); // Prevent row click
+                            
+                            // Filter data for this specific month and product
+                            const monthSpecificData = (Array.isArray(product.rawData) ? product.rawData : []).filter((transaction: any) => {
+                              const itemDate = parseDate(transaction.paymentDate);
+                              if (!itemDate) return false;
+                              return itemDate.getFullYear() === year && itemDate.getMonth() + 1 === month;
+                            });
+                            
+                            const monthRevenue = monthSpecificData.reduce((sum: any, transaction: any) => sum + (transaction.paymentValue || 0), 0);
+                            const monthTransactions = monthSpecificData.length;
+                            const monthCustomers = new Set(monthSpecificData.map((transaction: any) => transaction.memberId || transaction.customerEmail)).size;
+                            
+                            const enhancedCellData = {
+                              ...product,
+                              name: `${product.product} - ${display}`,
+                              totalRevenue: monthRevenue,
+                              grossRevenue: monthRevenue,
+                              netRevenue: monthRevenue,
+                              totalValue: monthRevenue,
+                              totalCurrent: monthRevenue,
+                              metricValue: monthRevenue,
+                              transactions: monthTransactions,
+                              totalTransactions: monthTransactions,
+                              uniqueMembers: monthCustomers,
+                              totalCustomers: monthCustomers,
+                              rawData: monthSpecificData,
+                              filteredTransactionData: monthSpecificData,
+                              isDynamic: true,
+                              calculatedFromFiltered: true,
+                              cellSpecific: true,
+                              month: display,
+                              monthKey: key
+                            };
+                            
+                            console.log(`Cell click: ${product.product} - ${display}: ${monthTransactions} transactions, ${monthRevenue} revenue`);
+                            onRowClick && onRowClick(enhancedCellData);
+                          }}
+                        >
                           {formatMetricValue(product.monthlyValues[key] || 0, selectedMetric)}
                         </td>)}
                     </tr>)}
+
+                  {/* Category Totals Row */}
+                  <tr className="bg-gradient-to-r from-blue-100 to-indigo-100 border-t-2 border-blue-300 font-bold">
+                    <td className="px-8 py-3 text-sm font-bold text-blue-900 sticky left-0 bg-gradient-to-r from-blue-100 to-indigo-100 z-10">
+                      {categoryGroup.category} TOTAL
+                    </td>
+                    {monthlyData.map(({
+                key
+              }) => <td key={key} className="px-4 py-3 text-center text-sm text-blue-900 font-mono font-bold">
+                        {formatMetricValue(categoryGroup.monthlyValues[key] || 0, selectedMetric)}
+                      </td>)}
+                  </tr>
                 </React.Fragment>)}
-              
-              {/* Totals Row */}
-              <tr className="bg-gradient-to-r from-gray-100 to-gray-50 border-t-2 border-gray-300 font-bold">
-                <td className="py-4 font-bold text-gray-900 sticky left-0 z-10 bg-gradient-to-r from-gray-100 to-gray-50 px-[10px] text-sm">
-                  <div className="flex items-center">
-                    <TrendingUp className="w-4 h-4 mr-2 text-blue-600" />
-                    TOTALS
-                  </div>
+
+              {/* Grand Totals Row */}
+              <tr className="bg-gradient-to-r from-emerald-500 via-teal-600 to-emerald-500 text-white border-t-4 border-emerald-700">
+                <td className="px-8 py-3 text-sm font-bold sticky left-0 bg-gradient-to-r from-emerald-500 to-teal-600 z-10">
+                  GRAND TOTAL
                 </td>
-                {monthlyData.map(({ key }) => (
-                  <td key={key} className="px-4 py-4 text-center font-bold text-gray-900 text-sm">
-                    {formatMetricValue(totalsData[key] || 0, selectedMetric)}
-                  </td>
-                ))}
+                {monthlyData.map(({
+              key
+            }) => {
+              const grandTotal = processedData.reduce((sum, categoryGroup) => 
+                sum + (categoryGroup.monthlyValues[key] || 0), 0
+              );
+              return <td key={key} className="px-4 py-3 text-center text-sm font-mono font-bold">
+                      {formatMetricValue(grandTotal, selectedMetric)}
+                    </td>;
+            })}
               </tr>
             </tbody>
           </table>
-        </div>
-
-        {/* Footer Summary Section */}
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-t border-gray-200 p-6">
-          <div className="flex items-start justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-blue-600" />
-              Summary & Insights
-            </h3>
-            {!isEditingSummary ? (
-              <Button
-                onClick={() => setIsEditingSummary(true)}
-                variant="outline"
-                size="sm"
-                className="flex items-center gap-2"
-              >
-                <Edit3 className="w-4 h-4" />
-                Edit
-              </Button>
-            ) : (
-              <div className="flex gap-2">
-                <Button
-                  onClick={handleSaveSummary}
-                  size="sm"
-                  className="flex items-center gap-2"
-                >
-                  <Save className="w-4 h-4" />
-                  Save
-                </Button>
-                <Button
-                  onClick={handleCancelEdit}
-                  variant="outline"
-                  size="sm"
-                  className="flex items-center gap-2"
-                >
-                  <X className="w-4 h-4" />
-                  Cancel
-                </Button>
-              </div>
-            )}
-          </div>
-          
-          {isEditingSummary ? (
-            <Textarea
-              value={summaryText}
-              onChange={(e) => setSummaryText(e.target.value)}
-              className="min-h-[120px] text-sm"
-              placeholder="Enter bulleted insights (use • for bullets)"
-            />
-          ) : (
-            <div className="text-sm text-gray-700 leading-relaxed">
-              {summaryText.split('\n').map((line, index) => (
-                <div key={index} className="mb-1">
-                  {line}
-                </div>
-              ))}
-            </div>
-          )}
         </div>
       </CardContent>
     </Card>;

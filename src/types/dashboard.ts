@@ -28,6 +28,8 @@ export interface SalesData {
   mrpPostTax?: number;
   discountAmount?: number;
   discountPercentage?: number;
+  discountType?: string;
+  isPromotional?: boolean;
   hostId?: string;
 }
 
@@ -49,6 +51,10 @@ export interface SessionData {
   fillPercentage: number;
   sessionCount: number;
   totalAttendees: number;
+  uniqueId1?: string;
+  uniqueId2?: string;
+  classes?: string;
+  sessionName?: string;
 }
 
 export interface NewClientData {
@@ -76,6 +82,7 @@ export interface NewClientData {
   period: string;
   unique: string;
   firstPurchase: string;
+  monthYear?: string;
   conversionSpan: number;
 }
 
@@ -94,6 +101,11 @@ export interface PayrollData {
   nonEmptyBarreSessions: number;
   barreCustomers: number;
   barrePaid: number;
+  strengthSessions?: number;
+  emptyStrengthSessions?: number;
+  nonEmptyStrengthSessions?: number;
+  strengthCustomers?: number;
+  strengthPaid?: number;
   totalSessions: number;
   totalEmptySessions: number;
   totalNonEmptySessions: number;
@@ -106,6 +118,9 @@ export interface PayrollData {
   retention: string;
   converted: number;
   conversion: string;
+  conversionRate?: number;
+  retentionRate?: number;
+  newCustomers?: number;
   classAverageInclEmpty: number;
   classAverageExclEmpty: number;
 }
@@ -204,7 +219,9 @@ export type YearOnYearMetricType =
   | 'upt'
   | 'vat'
   | 'netRevenue'
-  | 'units';
+  | 'units'
+  | 'discountValue'
+  | 'discountPercentage';
 
 // Data table props interface
 export interface DataTableProps {
@@ -234,12 +251,95 @@ export interface InteractiveChartProps {
   type: 'revenue' | 'performance' | 'sessions' | 'newClients';
 }
 
+export interface LateCancellationsData {
+  memberId?: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  location?: string;
+  sessionName?: string;
+  teacherName?: string;
+  cleanedProduct?: string;
+  cleanedCategory?: string;
+  cleanedClass?: string;
+  paymentMethodName?: string;
+  dateIST?: string;
+  dayOfWeek?: string;
+  time?: string;
+  duration?: number;
+  capacity?: number;
+  month?: string;
+  year?: number;
+  paidAmount?: number;
+  isNew?: string;
+  tableType?: string;
+  [key: string]: string | number | undefined;
+}
+
+export interface DiscountAnalysisData {
+  memberId?: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  location?: string;
+  cleanedProduct?: string;
+  cleanedCategory?: string;
+  mrpPostTax?: number;
+  discountAmount?: number;
+  discountPercentage?: number;
+  paymentDate?: string;
+  soldBy?: string;
+  paymentValue?: number;
+  [key: string]: string | number | undefined;
+}
+
+export interface LateCancellationsFilterOptions {
+  dateRange: {
+    start: string;
+    end: string;
+  };
+  location: string[];
+  trainer: string[];
+  classType: string[];
+  productType: string[];
+}
+
+export interface ExpirationData {
+  uniqueId: string;
+  memberId: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  membershipName: string;
+  endDate: string;
+  homeLocation: string;
+  currentUsage: string;
+  id: string;
+  orderAt: string;
+  soldBy: string;
+  membershipId: string;
+  frozen: boolean;
+  paid: string;
+  status: string;
+}
+
+export interface ExpirationFilterOptions {
+  dateRange: {
+    start: string;
+    end: string;
+  };
+  location: string[];
+  status: string[];
+  membershipType: string[];
+  soldBy: string[];
+}
+
 export interface DrillDownModalProps {
   isOpen: boolean;
   onClose: () => void;
   title: string;
   data: any[];
-  type: 'product' | 'category' | 'paymentMethod' | 'metric' | 'member' | 'soldBy' | 'client-conversion' | 'trainer' | 'location';
+  type: 'product' | 'category' | 'paymentMethod' | 'metric' | 'member' | 'soldBy' | 'client-conversion' | 'trainer' | 'location' | 'expiration';
   columns: Array<{
     key: string;
     header: string;

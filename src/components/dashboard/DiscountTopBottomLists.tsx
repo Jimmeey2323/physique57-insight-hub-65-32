@@ -1,14 +1,15 @@
+
 import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { TrendingUp, TrendingDown, Award, Target, Zap, AlertTriangle } from 'lucide-react';
-import { SalesData } from '@/types/dashboard';
+import { DiscountAnalysisData } from '@/hooks/useDiscountAnalysis';
 import { formatCurrency, formatNumber } from '@/utils/formatters';
 import { cn } from '@/lib/utils';
 
 interface DiscountTopBottomListsProps {
-  data: SalesData[];
+  data: DiscountAnalysisData[];
   onItemClick?: (item: any) => void;
 }
 
@@ -133,22 +134,22 @@ export const DiscountTopBottomLists: React.FC<DiscountTopBottomListsProps> = ({
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="space-y-4 max-h-96 overflow-y-auto">
+        <div className="space-y-3 max-h-80 overflow-y-auto">
           {items.map((item: any, index: number) => (
             <div
               key={item.product || item.staff || item.category}
-              className="flex items-center justify-between p-4 min-h-[80px] bg-white/60 rounded-lg hover:bg-white/80 transition-all duration-300 hover:scale-102 cursor-pointer"
+              className="flex items-center justify-between p-3 bg-white/60 rounded-lg hover:bg-white/80 transition-all duration-300 hover:scale-102 cursor-pointer"
               onClick={() => onItemClick?.(item)}
             >
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
                   {index + 1}
                 </div>
                 <div className="flex-1">
-                  <p className="font-medium text-base text-slate-800 truncate mb-1">
+                  <p className="font-medium text-sm text-slate-800 truncate">
                     {item.product || item.staff || item.category}
                   </p>
-                  <div className="flex items-center gap-4 text-sm text-slate-600">
+                  <div className="flex items-center gap-4 text-xs text-slate-600">
                     <span>{item.transactions} transactions</span>
                     {item.category && (
                       <Badge variant="outline" className="text-xs">
@@ -158,14 +159,14 @@ export const DiscountTopBottomLists: React.FC<DiscountTopBottomListsProps> = ({
                   </div>
                 </div>
               </div>
-              <div className="text-right space-y-1 min-w-[120px]">
-                <div className="font-bold text-blue-600 text-base">
+              <div className="text-right space-y-1">
+                <div className="font-bold text-blue-600 text-sm">
                   {formatCurrency(item.totalDiscount)}
                 </div>
-                <div className="text-sm text-slate-600">
+                <div className="text-xs text-slate-600">
                   {item.discountRate?.toFixed(1)}% rate
                 </div>
-                <div className="text-sm text-slate-500">
+                <div className="text-xs text-slate-500">
                   {formatCurrency(item.avgDiscount)} avg
                 </div>
               </div>

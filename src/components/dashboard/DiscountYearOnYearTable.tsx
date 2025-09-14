@@ -1,284 +1,255 @@
 
 import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { ModernDataTable } from '@/components/ui/ModernDataTable';
 import { SalesData } from '@/types/dashboard';
-import { formatCurrency, formatNumber, formatPercentage } from '@/utils/formatters';
-import { CalendarDays, TrendingUp, TrendingDown } from 'lucide-react';
-import { MetricTooltip } from '@/components/ui/MetricTooltip';
+import { formatCurrency, formatNumber } from '@/utils/formatters';
+import { Calendar } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 
 interface DiscountYearOnYearTableProps {
   data: SalesData[];
+  filters?: any;
 }
 
-interface YearOnYearData {
-  month: string;
-  years: {
-    [year: string]: {
-      totalDiscounts: number;
-      discountCount: number;
-      avgDiscountAmount: number;
-      avgDiscountPercentage: number;
-      totalRevenue: number;
-      discountPenetration: number;
-    };
-  };
-}
-
-export const DiscountYearOnYearTable: React.FC<DiscountYearOnYearTableProps> = ({ data }) => {
-  const yearOnYearData = useMemo(() => {
-    if (!data || data.length === 0) return [];
-
-    // Group data by month and year
-    const grouped = data.reduce((acc, item) => {
-      if (!item.discountAmount || item.discountAmount <= 0) return acc;
-
+export const DiscountYearOnYearTable: React.FC<DiscountYearOnYearTableProps> = ({ data, filters }) => {
+  const processedData = useMemo(() => {
+    const discountedData = data.filter(item => (item.discountAmount || 0) > 0);
+    
+    // Group by year and month
+    const yearMonthData = discountedData.reduce((acc, item) => {
       const date = new Date(item.paymentDate);
-      const month = date.toLocaleString('default', { month: 'long' });
-      const year = date.getFullYear().toString();
-
-      if (!acc[month]) {
-        acc[month] = { month, years: {} };
+      const year = date.getFullYear();
+      const month = date.getMonth() + 1;
+      const monthName = date.toLocaleDateString('en-US', { month: 'long' });
+      const key = `${monthName}`;
+      
+      if (!acc[key]) {
+        acc[key] = { month: monthName, years: {} };
       }
-
-      if (!acc[month].years[year]) {
-        acc[month].years[year] = {
-          totalDiscounts: 0,
-          discountCount: 0,
-          avgDiscountAmount: 0,
-          avgDiscountPercentage: 0,
+      
+      if (!acc[key].years[year]) {
+        acc[key].years[year] = {
+          transactions: 0,
+          totalDiscount: 0,
           totalRevenue: 0,
-          discountPenetration: 0,
+          totalPotentialRevenue: 0,
+          uniqueCustomers: new Set(),
+          discountPercentages: []
         };
       }
 
-      acc[month].years[year].totalDiscounts += item.discountAmount;
-      acc[month].years[year].discountCount += 1;
-      acc[month].years[year].totalRevenue += item.grossRevenue || 0;
+      acc[key].years[year].transactions += 1;
+      acc[key].years[year].totalDiscount += item.discountAmount || 0;
+      acc[key].years[year].totalRevenue += item.paymentValue || 0;
+      acc[key].years[year].totalPotentialRevenue += item.mrpPostTax || item.paymentValue || 0;
+      acc[key].years[year].uniqueCustomers.add(item.customerEmail);
+      acc[key].years[year].discountPercentages.push(item.discountPercentage || 0);
 
       return acc;
-    }, {} as { [key: string]: YearOnYearData });
+    }, {} as Record<string, any>);
 
-    // Calculate averages and percentages
-    Object.values(grouped).forEach(monthData => {
-      Object.values(monthData.years).forEach(yearData => {
-        yearData.avgDiscountAmount = yearData.discountCount > 0 
-          ? yearData.totalDiscounts / yearData.discountCount 
-          : 0;
-        
-        // Calculate average discount percentage
-        const relevantTransactions = data.filter(item => {
-          const date = new Date(item.paymentDate);
-          const month = date.toLocaleString('default', { month: 'long' });
-          const year = date.getFullYear().toString();
-          const monthKey = Object.keys(grouped).find(key => grouped[key] === monthData);
-          return month === monthKey && year in monthData.years && item.discountAmount > 0;
-        });
-        
-        yearData.avgDiscountPercentage = relevantTransactions.length > 0
-          ? relevantTransactions.reduce((sum, item) => sum + (item.discountPercentage || 0), 0) / relevantTransactions.length
-          : 0;
+    // Convert to table format
+    const months = ['January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'];
 
-        // Calculate discount penetration (assuming we have total transactions data)
-        yearData.discountPenetration = yearData.discountCount > 0 ? yearData.discountCount : 0;
-      });
+    return months.map(month => {
+      const monthData = yearMonthData[month];
+      if (!monthData) {
+        return {
+          month,
+          year2024: { transactions: 0, totalDiscount: 0, totalRevenue: 0, discountRate: 0, avgDiscount: 0, atv: 0, auv: 0, customers: 0 },
+          year2025: { transactions: 0, totalDiscount: 0, totalRevenue: 0, discountRate: 0, avgDiscount: 0, atv: 0, auv: 0, customers: 0 },
+          yoyChange: { transactions: 0, discount: 0, revenue: 0, atv: 0 }
+        };
+      }
+
+      const data2024 = monthData.years[2024] || { transactions: 0, totalDiscount: 0, totalRevenue: 0, totalPotentialRevenue: 0, uniqueCustomers: new Set() };
+      const data2025 = monthData.years[2025] || { transactions: 0, totalDiscount: 0, totalRevenue: 0, totalPotentialRevenue: 0, uniqueCustomers: new Set() };
+
+      const year2024 = {
+        transactions: data2024.transactions,
+        totalDiscount: data2024.totalDiscount,
+        totalRevenue: data2024.totalRevenue,
+        discountRate: data2024.totalPotentialRevenue > 0 ? (data2024.totalDiscount / data2024.totalPotentialRevenue) * 100 : 0,
+        avgDiscount: data2024.transactions > 0 ? data2024.totalDiscount / data2024.transactions : 0,
+        atv: data2024.transactions > 0 ? data2024.totalRevenue / data2024.transactions : 0,
+        auv: data2024.transactions > 0 ? data2024.totalRevenue / data2024.transactions : 0,
+        customers: data2024.uniqueCustomers.size
+      };
+
+      const year2025 = {
+        transactions: data2025.transactions,
+        totalDiscount: data2025.totalDiscount,
+        totalRevenue: data2025.totalRevenue,
+        discountRate: data2025.totalPotentialRevenue > 0 ? (data2025.totalDiscount / data2025.totalPotentialRevenue) * 100 : 0,
+        avgDiscount: data2025.transactions > 0 ? data2025.totalDiscount / data2025.transactions : 0,
+        atv: data2025.transactions > 0 ? data2025.totalRevenue / data2025.transactions : 0,
+        auv: data2025.transactions > 0 ? data2025.totalRevenue / data2025.transactions : 0,
+        customers: data2025.uniqueCustomers.size
+      };
+
+      const yoyChange = {
+        transactions: year2024.transactions > 0 ? ((year2025.transactions - year2024.transactions) / year2024.transactions) * 100 : 0,
+        discount: year2024.totalDiscount > 0 ? ((year2025.totalDiscount - year2024.totalDiscount) / year2024.totalDiscount) * 100 : 0,
+        revenue: year2024.totalRevenue > 0 ? ((year2025.totalRevenue - year2024.totalRevenue) / year2024.totalRevenue) * 100 : 0,
+        atv: year2024.atv > 0 ? ((year2025.atv - year2024.atv) / year2024.atv) * 100 : 0
+      };
+
+      return { month, year2024, year2025, yoyChange };
     });
-
-    return Object.values(grouped);
   }, [data]);
 
-  const availableYears = useMemo(() => {
-    const years = new Set<string>();
-    yearOnYearData.forEach(monthData => {
-      Object.keys(monthData.years).forEach(year => years.add(year));
+  const totals = useMemo(() => {
+    return processedData.reduce((acc, row) => ({
+      year2024: {
+        transactions: acc.year2024.transactions + row.year2024.transactions,
+        totalDiscount: acc.year2024.totalDiscount + row.year2024.totalDiscount,
+        totalRevenue: acc.year2024.totalRevenue + row.year2024.totalRevenue,
+        customers: acc.year2024.customers + row.year2024.customers
+      },
+      year2025: {
+        transactions: acc.year2025.transactions + row.year2025.transactions,
+        totalDiscount: acc.year2025.totalDiscount + row.year2025.totalDiscount,
+        totalRevenue: acc.year2025.totalRevenue + row.year2025.totalRevenue,
+        customers: acc.year2025.customers + row.year2025.customers
+      }
+    }), { 
+      year2024: { transactions: 0, totalDiscount: 0, totalRevenue: 0, customers: 0 },
+      year2025: { transactions: 0, totalDiscount: 0, totalRevenue: 0, customers: 0 }
     });
-    return Array.from(years).sort();
-  }, [yearOnYearData]);
+  }, [processedData]);
 
-  const calculateYoYChange = (currentValue: number, previousValue: number): number => {
-    if (previousValue === 0) return currentValue > 0 ? 100 : 0;
-    return ((currentValue - previousValue) / previousValue) * 100;
-  };
-
-  const getChangeIcon = (change: number) => {
-    if (change > 0) return <TrendingUp className="w-3 h-3 text-red-500" />;
-    if (change < 0) return <TrendingDown className="w-3 h-3 text-green-500" />;
-    return null;
-  };
-
-  const getChangeBadge = (change: number) => {
-    const isPositive = change > 0;
-    return (
-      <Badge variant={isPositive ? "destructive" : "default"} className="text-xs">
-        {getChangeIcon(change)}
-        {formatPercentage(Math.abs(change))}
-      </Badge>
-    );
-  };
-
-  if (yearOnYearData.length === 0) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <CalendarDays className="w-5 h-5" />
-            Year-on-Year Discount Analysis
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground">No discount data available for year-on-year comparison.</p>
-        </CardContent>
-      </Card>
-    );
-  }
+  const columns = [
+    { 
+      key: 'month', 
+      header: 'Month', 
+      align: 'left' as const,
+      render: (value: string) => <span className="font-semibold text-slate-800">{value}</span>
+    },
+    { 
+      key: 'year2024', 
+      header: '2024 Transactions', 
+      align: 'center' as const,
+      render: (value: any) => <span className="font-medium">{formatNumber(value.transactions)}</span>
+    },
+    { 
+      key: 'year2025', 
+      header: '2025 Transactions', 
+      align: 'center' as const,
+      render: (value: any) => <span className="font-medium">{formatNumber(value.transactions)}</span>
+    },
+    { 
+      key: 'yoyChange', 
+      header: 'Transaction Change', 
+      align: 'center' as const,
+      render: (value: any) => (
+        <Badge variant={value.transactions >= 0 ? "default" : "destructive"} className="min-w-[70px] justify-center">
+          {value.transactions > 0 ? '+' : ''}{value.transactions.toFixed(1)}%
+        </Badge>
+      )
+    },
+    { 
+      key: 'year2024', 
+      header: '2024 Discount', 
+      align: 'center' as const,
+      render: (value: any) => <span className="text-red-600 font-medium">{formatCurrency(value.totalDiscount)}</span>
+    },
+    { 
+      key: 'year2025', 
+      header: '2025 Discount', 
+      align: 'center' as const,
+      render: (value: any) => <span className="text-red-600 font-medium">{formatCurrency(value.totalDiscount)}</span>
+    },
+    { 
+      key: 'yoyChange', 
+      header: 'Discount Change', 
+      align: 'center' as const,
+      render: (value: any) => (
+        <Badge variant={value.discount <= 0 ? "default" : "destructive"} className="min-w-[70px] justify-center">
+          {value.discount > 0 ? '+' : ''}{value.discount.toFixed(1)}%
+        </Badge>
+      )
+    },
+    { 
+      key: 'year2024', 
+      header: '2024 ATV', 
+      align: 'center' as const,
+      render: (value: any) => <span className="text-blue-600 font-medium">{formatCurrency(value.atv)}</span>
+    },
+    { 
+      key: 'year2025', 
+      header: '2025 ATV', 
+      align: 'center' as const,
+      render: (value: any) => <span className="text-blue-600 font-medium">{formatCurrency(value.atv)}</span>
+    },
+    { 
+      key: 'yoyChange', 
+      header: 'ATV Change', 
+      align: 'center' as const,
+      render: (value: any) => (
+        <Badge variant={value.atv >= 0 ? "default" : "destructive"} className="min-w-[70px] justify-center">
+          {value.atv > 0 ? '+' : ''}{value.atv.toFixed(1)}%
+        </Badge>
+      )
+    }
+  ];
 
   return (
-    <Card className="overflow-hidden">
+    <Card className="bg-gradient-to-br from-white via-purple-50/30 to-blue-50/20 border-0 shadow-xl">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <CalendarDays className="w-5 h-5" />
-          Year-on-Year Discount Analysis
+        <CardTitle className="text-xl font-bold text-slate-800 flex items-center gap-2">
+          <Calendar className="w-6 h-6 text-purple-600" />
+          Year-on-Year Discount Comparison (2024 vs 2025)
         </CardTitle>
-        <p className="text-sm text-muted-foreground">
-          Compare discount metrics across the same months in different years
-        </p>
       </CardHeader>
-      <CardContent className="p-0">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-muted/50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Month
-                </th>
-                {availableYears.map(year => (
-                  <th key={year} colSpan={4} className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider border-l">
-                    {year}
-                  </th>
-                ))}
-              </tr>
-              <tr className="bg-muted/30">
-                <th className="px-6 py-2"></th>
-                {availableYears.map(year => (
-                  <React.Fragment key={year}>
-                    <th className="px-3 py-2 text-left text-xs text-muted-foreground border-l">
-                      <MetricTooltip
-                        title="Total Discounts"
-                        description="Total monetary value of discounts given"
-                        formula="SUM(discount_amount)"
-                        example="₹10,000 in discounts given"
-                        importance="Shows direct impact on revenue"
-                      >
-                        <span>Total</span>
-                      </MetricTooltip>
-                    </th>
-                    <th className="px-3 py-2 text-left text-xs text-muted-foreground">
-                      <MetricTooltip
-                        title="Average Amount"
-                        description="Average discount amount per transaction"
-                        formula="Total Discounts ÷ Discount Count"
-                        example="₹10,000 ÷ 50 transactions = ₹200 avg"
-                        importance="Helps optimize discount sizing"
-                      >
-                        <span>Avg Amt</span>
-                      </MetricTooltip>
-                    </th>
-                    <th className="px-3 py-2 text-left text-xs text-muted-foreground">
-                      <MetricTooltip
-                        title="Average Percentage"
-                        description="Average discount percentage applied"
-                        formula="SUM(discount_percentage) ÷ Count"
-                        example="15% + 20% + 10% ÷ 3 = 15% avg"
-                        importance="Key for margin analysis"
-                      >
-                        <span>Avg %</span>
-                      </MetricTooltip>
-                    </th>
-                    <th className="px-3 py-2 text-left text-xs text-muted-foreground">
-                      <MetricTooltip
-                        title="Transaction Count"
-                        description="Number of transactions with discounts"
-                        formula="COUNT(transactions_with_discounts)"
-                        example="50 transactions received discounts"
-                        importance="Shows promotional reach"
-                      >
-                        <span>Count</span>
-                      </MetricTooltip>
-                    </th>
-                  </React.Fragment>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {yearOnYearData.map((monthData, index) => (
-                <tr key={monthData.month} className={index % 2 === 0 ? 'bg-background' : 'bg-muted/20'}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground">
-                    {monthData.month}
-                  </td>
-                  {availableYears.map((year, yearIndex) => {
-                    const yearData = monthData.years[year];
-                    const previousYear = availableYears[yearIndex - 1];
-                    const previousYearData = previousYear ? monthData.years[previousYear] : null;
-
-                    if (!yearData) {
-                      return (
-                        <React.Fragment key={year}>
-                          <td className="px-3 py-4 text-sm text-muted-foreground border-l" colSpan={4}>
-                            No data
-                          </td>
-                        </React.Fragment>
-                      );
-                    }
-
-                    return (
-                      <React.Fragment key={year}>
-                        <td className="px-3 py-4 whitespace-nowrap text-sm border-l">
-                          <div className="flex flex-col">
-                            <span className="font-medium">{formatCurrency(yearData.totalDiscounts)}</span>
-                            {previousYearData && (
-                              <div className="mt-1">
-                                {getChangeBadge(calculateYoYChange(yearData.totalDiscounts, previousYearData.totalDiscounts))}
-                              </div>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-3 py-4 whitespace-nowrap text-sm">
-                          <div className="flex flex-col">
-                            <span className="font-medium">{formatCurrency(yearData.avgDiscountAmount)}</span>
-                            {previousYearData && (
-                              <div className="mt-1">
-                                {getChangeBadge(calculateYoYChange(yearData.avgDiscountAmount, previousYearData.avgDiscountAmount))}
-                              </div>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-3 py-4 whitespace-nowrap text-sm">
-                          <div className="flex flex-col">
-                            <span className="font-medium">{yearData.avgDiscountPercentage.toFixed(1)}%</span>
-                            {previousYearData && (
-                              <div className="mt-1">
-                                {getChangeBadge(calculateYoYChange(yearData.avgDiscountPercentage, previousYearData.avgDiscountPercentage))}
-                              </div>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-3 py-4 whitespace-nowrap text-sm">
-                          <div className="flex flex-col">
-                            <span className="font-medium">{formatNumber(yearData.discountCount)}</span>
-                            {previousYearData && (
-                              <div className="mt-1">
-                                {getChangeBadge(calculateYoYChange(yearData.discountCount, previousYearData.discountCount))}
-                              </div>
-                            )}
-                          </div>
-                        </td>
-                      </React.Fragment>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      <CardContent>
+        <ModernDataTable
+          data={processedData}
+          columns={columns}
+          showFooter={true}
+          footerData={{
+            month: 'TOTAL',
+            year2024: totals.year2024,
+            year2025: totals.year2025,
+            yoyChange: {
+              transactions: totals.year2024.transactions > 0 ? ((totals.year2025.transactions - totals.year2024.transactions) / totals.year2024.transactions) * 100 : 0,
+              discount: totals.year2024.totalDiscount > 0 ? ((totals.year2025.totalDiscount - totals.year2024.totalDiscount) / totals.year2024.totalDiscount) * 100 : 0,
+              revenue: totals.year2024.totalRevenue > 0 ? ((totals.year2025.totalRevenue - totals.year2024.totalRevenue) / totals.year2024.totalRevenue) * 100 : 0,
+              atv: totals.year2024.totalRevenue > 0 && totals.year2024.transactions > 0 && totals.year2025.totalRevenue > 0 && totals.year2025.transactions > 0 ? 
+                (((totals.year2025.totalRevenue / totals.year2025.transactions) - (totals.year2024.totalRevenue / totals.year2024.transactions)) / (totals.year2024.totalRevenue / totals.year2024.transactions)) * 100 : 0
+            }
+          }}
+          maxHeight="500px"
+          stickyHeader={true}
+        />
+        
+        <div className="mt-4 p-4 bg-slate-50 rounded-lg">
+          <h4 className="font-semibold text-slate-800 mb-2">Year-on-Year Summary</h4>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div>
+              <span className="text-slate-600">2024 Total Discount:</span>
+              <div className="font-semibold text-red-600">{formatCurrency(totals.year2024.totalDiscount)}</div>
+            </div>
+            <div>
+              <span className="text-slate-600">2025 Total Discount:</span>
+              <div className="font-semibold text-red-600">{formatCurrency(totals.year2025.totalDiscount)}</div>
+            </div>
+            <div>
+              <span className="text-slate-600">Discount Change:</span>
+              <div className={`font-semibold ${totals.year2024.totalDiscount > 0 ? 
+                ((totals.year2025.totalDiscount - totals.year2024.totalDiscount) / totals.year2024.totalDiscount) * 100 > 0 ? 'text-red-600' : 'text-green-600'
+                : 'text-slate-600'}`}>
+                {totals.year2024.totalDiscount > 0 ? 
+                  `${((totals.year2025.totalDiscount - totals.year2024.totalDiscount) / totals.year2024.totalDiscount) * 100 > 0 ? '+' : ''}${(((totals.year2025.totalDiscount - totals.year2024.totalDiscount) / totals.year2024.totalDiscount) * 100).toFixed(1)}%`
+                  : 'N/A'}
+              </div>
+            </div>
+            <div>
+              <span className="text-slate-600">Revenue Impact:</span>
+              <div className="font-semibold">{formatCurrency(totals.year2025.totalRevenue - totals.year2024.totalRevenue)}</div>
+            </div>
+          </div>
         </div>
       </CardContent>
     </Card>

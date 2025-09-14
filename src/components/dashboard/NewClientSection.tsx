@@ -8,7 +8,7 @@ import { EnhancedClientConversionFilterSection } from './EnhancedClientConversio
 import { ClientConversionCharts } from './ClientConversionCharts';
 import { ClientAcquisitionFunnel } from './ClientAcquisitionFunnel';
 import { ClientConversionTopBottomLists } from './ClientConversionTopBottomLists';
-import { ReconstructedClientConversionMetrics } from './ReconstructedClientConversionMetrics';
+import { EnhancedClientConversionMetrics } from './EnhancedClientConversionMetrics';
 import { ConversionAnalyticsTables } from './ConversionAnalyticsTables';
 import { ClientConversionDataTable } from './ClientConversionDataTable';
 import { ClientConversionMonthOnMonthTable } from './ClientConversionMonthOnMonthTable';
@@ -16,7 +16,7 @@ import { ClientConversionYearOnYearTable } from './ClientConversionYearOnYearTab
 import { SourceDataModal } from '@/components/ui/SourceDataModal';
 import { DrillDownModal } from './DrillDownModal';
 import { Button } from '@/components/ui/button';
-import { Eye, BarChart3, Users, Target, TrendingUp, Database } from 'lucide-react';
+import { Eye, BarChart3, Users, Target, TrendingUp } from 'lucide-react';
 import { NewClientData, NewClientFilterOptions } from '@/types/dashboard';
 import { formatCurrency, formatNumber, formatPercentage } from '@/utils/formatters';
 import { getPreviousMonthDateRange } from '@/utils/dateUtils';
@@ -164,36 +164,7 @@ export const NewClientSection: React.FC<NewClientSectionProps> = ({
 
   return (
     <div className="space-y-8">
-      {/* Data Status */}
-      <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200">
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Database className="w-5 h-5 text-blue-600" />
-              <span className="font-medium text-blue-800">Data Status</span>
-            </div>
-            <div className="flex items-center gap-4">
-              <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-300">
-                Total Records: {formatNumber(data?.length || 0)}
-              </Badge>
-              <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300">
-                Filtered: {formatNumber(filteredData.length)}
-              </Badge>
-              <Button
-                onClick={() => setShowSourceData(true)}
-                variant="outline"
-                size="sm"
-                className="text-blue-600 border-blue-300 hover:bg-blue-50"
-              >
-                <Eye className="w-4 h-4 mr-2" />
-                View Source Data
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Filter Section */}
+      {/* Filter Section - Using Enhanced Filter */}
       <EnhancedClientConversionFilterSection
         filters={filters}
         onFiltersChange={setFilters}
@@ -202,8 +173,8 @@ export const NewClientSection: React.FC<NewClientSectionProps> = ({
         membershipTypes={uniqueMembershipTypes}
       />
 
-      {/* Reconstructed Metrics using filtered data */}
-      <ReconstructedClientConversionMetrics data={filteredData} />
+      {/* Enhanced Metrics using filtered data */}
+      <EnhancedClientConversionMetrics data={filteredData} />
 
       {/* Main Content Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -280,10 +251,8 @@ export const NewClientSection: React.FC<NewClientSectionProps> = ({
           onOpenChange={setShowSourceData}
           sources={[
             {
-              name: "New Clients Data",
-              data: data,
-              spreadsheetId: "149ILDqovzZA6FRUJKOwzutWdVqmqWBtWPfzG3A0zxTI",
-              sheetName: "New"
+              name: "New Clients",
+              data: data
             }
           ]}
         />

@@ -29,6 +29,7 @@ import {
 import { DatePickerWithRange } from '@/components/ui/date-picker';
 import { Input } from '@/components/ui/input';
 import { LeadsFilterOptions } from '@/types/leads';
+import { getPreviousMonthDateRange } from '@/utils/dateUtils';
 
 interface FunnelLeadsFilterSectionProps {
   filters: LeadsFilterOptions;
@@ -73,9 +74,43 @@ export const FunnelLeadsFilterSection: React.FC<FunnelLeadsFilterSectionProps> =
     });
   };
 
+  const getPreviousMonthRange = () => {
+    const now = new Date();
+    const firstDayPreviousMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lastDayPreviousMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+    
+    const formatDate = (date: Date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+    
+    return {
+      start: formatDate(firstDayPreviousMonth),
+      end: formatDate(lastDayPreviousMonth)
+    };
+  };
+
   const clearAllFilters = () => {
+    const now = new Date();
+    const firstDayPreviousMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lastDayPreviousMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+    
+    const formatDate = (date: Date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+    
+    const previousMonth = {
+      start: formatDate(firstDayPreviousMonth),
+      end: formatDate(lastDayPreviousMonth)
+    };
+    
     onFiltersChange({
-      dateRange: { start: '', end: '' },
+      dateRange: previousMonth,
       location: [],
       source: [],
       stage: [],
@@ -90,19 +125,16 @@ export const FunnelLeadsFilterSection: React.FC<FunnelLeadsFilterSectionProps> =
     });
   };
 
-  const activeFilterCount = 
-    filters.location.length +
-    filters.source.length +
-    filters.stage.length +
-    filters.status.length +
-    filters.associate.length +
-    filters.channel.length +
-    filters.trialStatus.length +
-    filters.conversionStatus.length +
-    filters.retentionStatus.length +
-    (filters.dateRange.start ? 1 : 0) +
-    (filters.dateRange.end ? 1 : 0) +
-    (filters.minLTV ? 1 : 0) +
+  const activeFilterCount = (filters.location?.length || 0) + 
+    (filters.source?.length || 0) + 
+    (filters.stage?.length || 0) + 
+    (filters.status?.length || 0) + 
+    (filters.associate?.length || 0) + 
+    (filters.channel?.length || 0) + 
+    (filters.trialStatus?.length || 0) + 
+    (filters.conversionStatus?.length || 0) + 
+    (filters.retentionStatus?.length || 0) + 
+    (filters.minLTV ? 1 : 0) + 
     (filters.maxLTV ? 1 : 0);
 
   const filterConfigs = [

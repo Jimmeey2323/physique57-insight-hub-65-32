@@ -19,27 +19,22 @@ export const DiscountLocationSelector: React.FC<DiscountLocationSelectorProps> =
   onLocationChange
 }) => {
   const locationStats = React.useMemo(() => {
-    // Get unique locations from the actual data
-    const uniqueLocations = [...new Set(data.map(item => item.calculatedLocation).filter(Boolean))];
-    
     const stats = data.reduce((acc, item) => {
       const location = item.calculatedLocation || 'Unknown';
       if (!acc[location]) {
         acc[location] = { 
           total: 0, 
           discounted: 0,
-          totalDiscount: 0,
-          totalRevenue: 0
+          totalDiscount: 0
         };
       }
       acc[location].total += 1;
-      acc[location].totalRevenue += item.paymentValue || 0;
       if ((item.discountAmount || 0) > 0) {
         acc[location].discounted += 1;
         acc[location].totalDiscount += item.discountAmount || 0;
       }
       return acc;
-    }, {} as Record<string, { total: number; discounted: number; totalDiscount: number; totalRevenue: number }>);
+    }, {} as Record<string, { total: number; discounted: number; totalDiscount: number }>);
 
     const allStats = Object.entries(stats).map(([location, data]) => ({
       location,
@@ -50,7 +45,6 @@ export const DiscountLocationSelector: React.FC<DiscountLocationSelectorProps> =
     const totalAll = data.length;
     const discountedAll = data.filter(item => (item.discountAmount || 0) > 0).length;
     const totalDiscountAll = data.reduce((sum, item) => sum + (item.discountAmount || 0), 0);
-    const totalRevenueAll = data.reduce((sum, item) => sum + (item.paymentValue || 0), 0);
 
     return [
       {
@@ -58,10 +52,9 @@ export const DiscountLocationSelector: React.FC<DiscountLocationSelectorProps> =
         total: totalAll,
         discounted: discountedAll,
         totalDiscount: totalDiscountAll,
-        totalRevenue: totalRevenueAll,
         discountRate: totalAll > 0 ? (discountedAll / totalAll) * 100 : 0
       },
-      ...allStats.sort((a, b) => b.total - a.total)
+      ...allStats.sort((a, b) => b.discounted - a.discounted)
     ];
   }, [data]);
 

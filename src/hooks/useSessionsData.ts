@@ -19,22 +19,19 @@ export interface SessionData {
   time: string;
   totalPaid: number;
   nonPaidCount: number;
-  uniqueId: string;
+  uniqueId1: string;
+  uniqueId2: string;
   checkedInsWithMemberships: number;
   checkedInsWithPackages: number;
   checkedInsWithIntroOffers: number;
   checkedInsWithSingleClasses: number;
   classType: string;
   cleanedClass: string;
+  classes: number;
   fillPercentage?: number;
   revenue?: number;
-  // Additional properties for late cancellation analysis
-  lateCancelled?: number;
-  booked?: number;
-  checkedIn?: number;
-  attendanceStatus?: string;
-  bookingStatus?: string;
-  className?: string;
+  // Legacy field for backward compatibility
+  uniqueId?: string;
 }
 
 const GOOGLE_CONFIG = {
@@ -112,8 +109,6 @@ export const useSessionsData = () => {
       const sessionsData: SessionData[] = rows.slice(1).map((row: any[]) => {
         const capacity = parseNumericValue(row[6]);
         const checkedInCount = parseNumericValue(row[7]);
-        const lateCancelledCount = parseNumericValue(row[8]);
-        const bookedCount = parseNumericValue(row[9]);
         const fillPercentage = capacity > 0 ? (checkedInCount / capacity) * 100 : 0;
         
         return {
@@ -125,34 +120,30 @@ export const useSessionsData = () => {
           sessionName: row[5] || '',
           capacity,
           checkedInCount,
-          lateCancelledCount,
-          bookedCount,
+          lateCancelledCount: parseNumericValue(row[8]),
+          bookedCount: parseNumericValue(row[9]),
           complimentaryCount: parseNumericValue(row[10]),
           location: row[11] || '',
           date: row[12] || '',
           dayOfWeek: row[13] || '',
           time: row[14] || '',
-          totalPaid: parseNumericValue(row[15]),
+          totalPaid: parseNumericValue(row[15]), // Revenue column
           nonPaidCount: parseNumericValue(row[16]),
-          uniqueId: row[17] || '',
-          checkedInsWithMemberships: parseNumericValue(row[19]),
-          checkedInsWithPackages: parseNumericValue(row[20]),
-          checkedInsWithIntroOffers: parseNumericValue(row[21]),
-          checkedInsWithSingleClasses: parseNumericValue(row[22]),
-          classType: row[23] || '',
-          cleanedClass: row[24] || '',
+          uniqueId1: row[17] || '',
+          uniqueId2: row[18] || '',
+          checkedInsWithMemberships: parseNumericValue(row[19]), // Memberships
+          checkedInsWithPackages: parseNumericValue(row[20]), // Packages
+          checkedInsWithIntroOffers: parseNumericValue(row[21]), // IntroOffers
+          checkedInsWithSingleClasses: parseNumericValue(row[22]), // SingleClasses
+          classType: row[23] || '', // Type
+          cleanedClass: row[24] || '', // Class
+          classes: parseNumericValue(row[25]), // Classes
           fillPercentage,
           revenue: parseNumericValue(row[15]),
-          // Map additional fields for late cancellation analysis
-          lateCancelled: lateCancelledCount,
-          booked: bookedCount,
-          checkedIn: checkedInCount,
-          className: row[24] || row[5] || ''
+          // Legacy field for backward compatibility
+          uniqueId: row[17] || ''
         };
       });
-
-      console.log('Sessions data loaded:', sessionsData.length, 'records');
-      console.log('Sample session with late cancellations:', sessionsData.find(s => s.lateCancelledCount > 0));
 
       setData(sessionsData);
       setError(null);

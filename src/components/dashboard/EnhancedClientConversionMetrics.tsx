@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -14,33 +13,27 @@ export const EnhancedClientConversionMetrics: React.FC<EnhancedClientConversionM
   // Calculate comprehensive metrics
   const totalClients = data.length;
   
-  // New members calculation - check if "Is New" column contains "New" but not "Not New"
+  // Count new members - only when isNew contains "New" (case sensitive)
   const newMembers = data.filter(client => {
-    const isNewValue = String(client.isNew || '').trim();
-    // Must contain "New" and should not be "Not New"
-    return isNewValue.includes('New') && isNewValue !== 'Not New';
+    const isNewValue = String(client.isNew || '');
+    return isNewValue.includes('New');
   }).length;
   
-  // Converted members - check if "Conversion Status" contains "Converted"
-  const convertedMembers = data.filter(client => {
-    const conversionStatus = String(client.conversionStatus || '').trim();
-    return conversionStatus.includes('Converted') && conversionStatus !== 'Not Converted';
-  }).length;
+  const convertedMembers = data.filter(client => client.conversionStatus === 'Converted').length;
+  const retainedMembers = data.filter(client => client.retentionStatus === 'Retained').length;
+  const trialsCompleted = data.filter(client => client.visitsPostTrial > 0).length;
   
-  // Retained members - check if "Retention Status" contains "Retained"
-  const retainedMembers = data.filter(client => {
-    const retentionStatus = String(client.retentionStatus || '').trim();
-    return retentionStatus.includes('Retained') && retentionStatus !== 'Not Retained';
-  }).length;
-  
-  // Trials completed - clients with visits post trial > 0
-  const trialsCompleted = data.filter(client => (client.visitsPostTrial || 0) > 0).length;
-  
-  // Lead to trial conversion (clients with first visit to those with visits post trial)
+  // Lead to trial conversion (assuming first visit = lead, visits post trial > 0 = trial completed)
   const leadToTrialConversion = totalClients > 0 ? (trialsCompleted / totalClients) * 100 : 0;
   
-  // Trial to member conversion (trials completed to converted members)
+  // Trial to member conversion
   const trialToMemberConversion = trialsCompleted > 0 ? (convertedMembers / trialsCompleted) * 100 : 0;
+  
+  // Overall conversion rate: Converted/New * 100
+  const overallConversionRate = newMembers > 0 ? (convertedMembers / newMembers) * 100 : 0;
+  
+  // Retention rate: retained from converted members only
+  const retentionRate = convertedMembers > 0 ? (retainedMembers / convertedMembers) * 100 : 0;
   
   const totalLTV = data.reduce((sum, client) => sum + (client.ltv || 0), 0);
   const avgLTV = totalClients > 0 ? totalLTV / totalClients : 0;
@@ -66,11 +59,11 @@ export const EnhancedClientConversionMetrics: React.FC<EnhancedClientConversionM
       change: '+8.3%'
     },
     {
-      title: 'Retained Members',
-      value: formatNumber(retainedMembers),
+      title: 'Retention Rate',
+      value: `${retentionRate.toFixed(1)}%`,
       icon: UserCheck,
       gradient: 'from-purple-500 to-violet-600',
-      description: 'Active retained clients',
+      description: 'Converted to retained rate',
       change: '+15.2%'
     },
     {
@@ -90,11 +83,11 @@ export const EnhancedClientConversionMetrics: React.FC<EnhancedClientConversionM
       change: '+3.1%'
     },
     {
-      title: 'Trial → Member Conv',
-      value: `${trialToMemberConversion.toFixed(1)}%`,
+      title: 'Conversion Rate',
+      value: `${overallConversionRate.toFixed(1)}%`,
       icon: TrendingUp,
       gradient: 'from-pink-500 to-rose-600',
-      description: 'Trial to member conversion',
+      description: 'Converted/New Members',
       change: '+4.8%'
     }
   ];

@@ -41,7 +41,10 @@ export const PowerCycleVsBarreTopBottomListsWrapper: React.FC<PowerCycleVsBarreT
       classType: session.classType,
       cleanedClass: session.cleanedClass,
       fillPercentage: session.fillPercentage,
-      revenue: 0
+      revenue: 0,
+      uniqueId1: session.sessionId,
+      uniqueId2: session.date,
+      classes: 1
     }));
   };
 

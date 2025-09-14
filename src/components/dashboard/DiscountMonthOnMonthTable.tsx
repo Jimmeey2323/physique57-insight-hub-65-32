@@ -1,234 +1,258 @@
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Calendar, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, Minus } from 'lucide-react';
-import { formatCurrency, formatNumber } from '@/utils/formatters';
+import { ModernDataTable } from '@/components/ui/ModernDataTable';
 import { SalesData } from '@/types/dashboard';
+import { formatCurrency, formatNumber } from '@/utils/formatters';
+import { Calendar } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 
 interface DiscountMonthOnMonthTableProps {
   data: SalesData[];
+  filters?: any;
 }
 
-interface MonthlyData {
-  month: string;
-  totalDiscount: number;
-  transactions: number;
-  avgDiscount: number;
-  revenue: number;
-  discountRate: number;
-}
-
-export const DiscountMonthOnMonthTable: React.FC<DiscountMonthOnMonthTableProps> = ({ data }) => {
-  const [sortBy, setSortBy] = useState<keyof MonthlyData>('month');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-
-  const monthlyData = useMemo(() => {
-    const monthlyMap = new Map<string, {
-      totalDiscount: number;
-      transactions: number;
-      revenue: number;
-    }>();
-
-    data.forEach(item => {
-      if (!item.discountAmount || item.discountAmount <= 0) return;
-
-      try {
-        let date: Date;
-        if (item.paymentDate.includes(',')) {
-          const [datePart] = item.paymentDate.split(',');
-          date = new Date(datePart.trim());
-        } else if (item.paymentDate.includes('/')) {
-          const [datePart] = item.paymentDate.split(' ')[0];
-          const [day, month, year] = datePart.split('/');
-          date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-        } else {
-          date = new Date(item.paymentDate);
-        }
-        
-        if (!isNaN(date.getTime())) {
-          const monthKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
-          
-          const existing = monthlyMap.get(monthKey) || { totalDiscount: 0, transactions: 0, revenue: 0 };
-          monthlyMap.set(monthKey, {
-            totalDiscount: existing.totalDiscount + (item.discountAmount || 0),
-            transactions: existing.transactions + 1,
-            revenue: existing.revenue + (item.paymentValue || 0)
-          });
-        }
-      } catch (e) {
-        console.warn('Failed to parse date:', item.paymentDate);
+export const DiscountMonthOnMonthTable: React.FC<DiscountMonthOnMonthTableProps> = ({ data, filters }) => {
+  const processedData = useMemo(() => {
+    const discountedData = data.filter(item => (item.discountAmount || 0) > 0);
+    
+    // Group by month
+    const monthlyData = discountedData.reduce((acc, item) => {
+      const date = new Date(item.paymentDate);
+      const monthKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+      const monthName = date.toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
+      
+      if (!acc[monthKey]) {
+        acc[monthKey] = {
+          month: monthName,
+          transactions: 0,
+          totalDiscount: 0,
+          totalRevenue: 0,
+          totalPotentialRevenue: 0,
+          uniqueCustomers: new Set(),
+          discountPercentages: []
+        };
       }
-    });
 
-    return Array.from(monthlyMap.entries())
-      .map(([month, data]) => ({
-        month,
-        totalDiscount: data.totalDiscount,
-        transactions: data.transactions,
-        avgDiscount: data.transactions > 0 ? data.totalDiscount / data.transactions : 0,
-        revenue: data.revenue,
-        discountRate: data.revenue > 0 ? (data.totalDiscount / data.revenue) * 100 : 0
-      }))
-      .sort((a, b) => a.month.localeCompare(b.month));
+      acc[monthKey].transactions += 1;
+      acc[monthKey].totalDiscount += item.discountAmount || 0;
+      acc[monthKey].totalRevenue += item.paymentValue || 0;
+      acc[monthKey].totalPotentialRevenue += item.mrpPostTax || item.paymentValue || 0;
+      acc[monthKey].uniqueCustomers.add(item.customerEmail);
+      acc[monthKey].discountPercentages.push(item.discountPercentage || 0);
+
+      return acc;
+    }, {} as Record<string, any>);
+
+    // Calculate MoM changes and format data
+    const months = Object.keys(monthlyData).sort();
+    return months.map((monthKey, index) => {
+      const current = monthlyData[monthKey];
+      const previous = index > 0 ? monthlyData[months[index - 1]] : null;
+
+      const avgDiscountPercent = current.discountPercentages.length > 0 
+        ? current.discountPercentages.reduce((sum: number, val: number) => sum + val, 0) / current.discountPercentages.length 
+        : 0;
+
+      const discountRate = current.totalPotentialRevenue > 0 
+        ? (current.totalDiscount / current.totalPotentialRevenue) * 100 
+        : 0;
+
+      const avgTransactionValue = current.transactions > 0 
+        ? current.totalRevenue / current.transactions 
+        : 0;
+
+      const avgUnitValue = current.transactions > 0 
+        ? current.totalRevenue / current.transactions 
+        : 0;
+
+      const avgDiscountAmount = current.transactions > 0 
+        ? current.totalDiscount / current.transactions 
+        : 0;
+
+      // Calculate MoM changes
+      const discountChange = previous && previous.totalDiscount > 0
+        ? ((current.totalDiscount - previous.totalDiscount) / previous.totalDiscount) * 100 
+        : 0;
+
+      const transactionChange = previous && previous.transactions > 0
+        ? ((current.transactions - previous.transactions) / previous.transactions) * 100 
+        : 0;
+
+      const revenueChange = previous && previous.totalRevenue > 0
+        ? ((current.totalRevenue - previous.totalRevenue) / previous.totalRevenue) * 100 
+        : 0;
+
+      return {
+        month: current.month,
+        monthKey,
+        transactions: current.transactions,
+        totalDiscount: current.totalDiscount,
+        totalRevenue: current.totalRevenue,
+        discountRate,
+        avgDiscountPercent,
+        avgDiscountAmount,
+        avgTransactionValue,
+        avgUnitValue,
+        uniqueCustomers: current.uniqueCustomers.size,
+        discountChange,
+        transactionChange,
+        revenueChange,
+        revenueLost: current.totalPotentialRevenue - current.totalRevenue
+      };
+    }).reverse(); // Most recent first
   }, [data]);
 
-  // Calculate month-on-month growth
-  const dataWithGrowth = useMemo(() => {
-    return monthlyData.map((current, index) => {
-      if (index === 0) {
-        return { ...current, growth: null };
-      }
-      
-      const previous = monthlyData[index - 1];
-      const growth = previous.totalDiscount > 0 
-        ? ((current.totalDiscount - previous.totalDiscount) / previous.totalDiscount) * 100
-        : 0;
-      
-      return { ...current, growth };
-    });
-  }, [monthlyData]);
+  const totals = useMemo(() => {
+    return processedData.reduce((acc, row) => ({
+      transactions: acc.transactions + row.transactions,
+      totalDiscount: acc.totalDiscount + row.totalDiscount,
+      totalRevenue: acc.totalRevenue + row.totalRevenue,
+      uniqueCustomers: acc.uniqueCustomers + row.uniqueCustomers,
+      revenueLost: acc.revenueLost + row.revenueLost
+    }), { transactions: 0, totalDiscount: 0, totalRevenue: 0, uniqueCustomers: 0, revenueLost: 0 });
+  }, [processedData]);
 
-  const sortedData = useMemo(() => {
-    return [...dataWithGrowth].sort((a, b) => {
-      const aVal = a[sortBy];
-      const bVal = b[sortBy];
-      
-      if (aVal === null || bVal === null) return 0;
-      
-      const comparison = typeof aVal === 'string' 
-        ? aVal.localeCompare(bVal as string)
-        : (aVal as number) - (bVal as number);
-      
-      return sortOrder === 'asc' ? comparison : -comparison;
-    });
-  }, [dataWithGrowth, sortBy, sortOrder]);
-
-  const handleSort = (column: keyof MonthlyData) => {
-    if (sortBy === column) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortBy(column);
-      setSortOrder('desc');
+  const columns = [
+    { 
+      key: 'month', 
+      header: 'Month', 
+      align: 'left' as const,
+      render: (value: string) => <span className="font-semibold text-slate-800">{value}</span>
+    },
+    { 
+      key: 'transactions', 
+      header: 'Transactions', 
+      align: 'center' as const,
+      render: (value: number, item: any) => (
+        <div className="flex flex-col items-center">
+          <span className="font-medium">{formatNumber(value)}</span>
+          {item.transactionChange !== 0 && (
+            <Badge variant={item.transactionChange > 0 ? "default" : "destructive"} className="text-xs mt-1 min-w-[60px] justify-center">
+              {item.transactionChange > 0 ? '+' : ''}{item.transactionChange.toFixed(1)}%
+            </Badge>
+          )}
+        </div>
+      )
+    },
+    { 
+      key: 'totalDiscount', 
+      header: 'Total Discount', 
+      align: 'center' as const,
+      render: (value: number, item: any) => (
+        <div className="flex flex-col items-center">
+          <span className="font-semibold text-red-600">{formatCurrency(value)}</span>
+          {item.discountChange !== 0 && (
+            <Badge variant={item.discountChange > 0 ? "destructive" : "default"} className="text-xs mt-1 min-w-[60px] justify-center">
+              {item.discountChange > 0 ? '+' : ''}{item.discountChange.toFixed(1)}%
+            </Badge>
+          )}
+        </div>
+      )
+    },
+    { 
+      key: 'avgDiscountAmount', 
+      header: 'Avg Discount', 
+      align: 'center' as const,
+      render: (value: number) => <span className="font-medium text-slate-700">{formatCurrency(value || 0)}</span>
+    },
+    { 
+      key: 'discountRate', 
+      header: 'Discount Rate', 
+      align: 'center' as const,
+      render: (value: number) => (
+        <Badge variant="outline" className="text-red-600 border-red-200 min-w-[60px] justify-center">
+          {(value || 0).toFixed(1)}%
+        </Badge>
+      )
+    },
+    { 
+      key: 'avgTransactionValue', 
+      header: 'ATV', 
+      align: 'center' as const,
+      render: (value: number) => <span className="font-medium text-blue-600">{formatCurrency(value || 0)}</span>
+    },
+    { 
+      key: 'avgUnitValue', 
+      header: 'AUV', 
+      align: 'center' as const,
+      render: (value: number) => <span className="font-medium text-green-600">{formatCurrency(value || 0)}</span>
+    },
+    { 
+      key: 'totalRevenue', 
+      header: 'Revenue', 
+      align: 'center' as const,
+      render: (value: number, item: any) => (
+        <div className="flex flex-col items-center">
+          <span className="font-medium">{formatCurrency(value)}</span>
+          {item.revenueChange !== 0 && (
+            <Badge variant={item.revenueChange > 0 ? "default" : "destructive"} className="text-xs mt-1 min-w-[60px] justify-center">
+              {item.revenueChange > 0 ? '+' : ''}{item.revenueChange.toFixed(1)}%
+            </Badge>
+          )}
+        </div>
+      )
+    },
+    { 
+      key: 'uniqueCustomers', 
+      header: 'Customers', 
+      align: 'center' as const,
+      render: (value: number) => <span className="font-medium text-slate-700">{formatNumber(value || 0)}</span>
     }
-  };
-
-  const getGrowthIcon = (growth: number | null) => {
-    if (growth === null) return <Minus className="w-4 h-4 text-gray-400" />;
-    if (growth > 0) return <ArrowUpRight className="w-4 h-4 text-green-600" />;
-    if (growth < 0) return <ArrowDownRight className="w-4 h-4 text-red-600" />;
-    return <Minus className="w-4 h-4 text-gray-400" />;
-  };
-
-  const getGrowthColor = (growth: number | null) => {
-    if (growth === null) return 'text-gray-500';
-    if (growth > 0) return 'text-green-600';
-    if (growth < 0) return 'text-red-600';
-    return 'text-gray-500';
-  };
-
-  const formatMonth = (monthStr: string) => {
-    const [year, month] = monthStr.split('-');
-    const date = new Date(parseInt(year), parseInt(month) - 1);
-    return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-  };
+  ];
 
   return (
-    <Card className="bg-gradient-to-br from-white via-blue-50/30 to-indigo-50/20 border-0 shadow-xl">
-      <CardHeader className="pb-4">
-        <CardTitle className="text-xl font-bold bg-gradient-to-r from-blue-700 to-indigo-700 bg-clip-text text-transparent flex items-center gap-2">
-          <Calendar className="w-6 h-6 text-blue-600" />
+    <Card className="bg-gradient-to-br from-white via-red-50/30 to-orange-50/20 border-0 shadow-xl">
+      <CardHeader>
+        <CardTitle className="text-xl font-bold text-slate-800 flex items-center gap-2">
+          <Calendar className="w-6 h-6 text-red-600" />
           Month-on-Month Discount Analysis
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-gray-200">
-                <th 
-                  className="text-left py-3 px-4 font-semibold text-gray-700 cursor-pointer hover:bg-gray-50"
-                  onClick={() => handleSort('month')}
-                >
-                  Month
-                </th>
-                <th 
-                  className="text-right py-3 px-4 font-semibold text-gray-700 cursor-pointer hover:bg-gray-50"
-                  onClick={() => handleSort('totalDiscount')}
-                >
-                  Total Discounts
-                </th>
-                <th 
-                  className="text-right py-3 px-4 font-semibold text-gray-700 cursor-pointer hover:bg-gray-50"
-                  onClick={() => handleSort('transactions')}
-                >
-                  Transactions
-                </th>
-                <th 
-                  className="text-right py-3 px-4 font-semibold text-gray-700 cursor-pointer hover:bg-gray-50"
-                  onClick={() => handleSort('avgDiscount')}
-                >
-                  Avg Discount
-                </th>
-                <th 
-                  className="text-right py-3 px-4 font-semibold text-gray-700 cursor-pointer hover:bg-gray-50"
-                  onClick={() => handleSort('discountRate')}
-                >
-                  Discount Rate
-                </th>
-                <th className="text-center py-3 px-4 font-semibold text-gray-700">
-                  MoM Growth
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {sortedData.map((row, index) => (
-                <tr 
-                  key={row.month} 
-                  className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors"
-                  style={{ height: '50px' }}
-                >
-                  <td className="py-3 px-4 font-medium text-gray-900">
-                    {formatMonth(row.month)}
-                  </td>
-                  <td className="py-3 px-4 text-right font-semibold text-gray-900">
-                    {formatCurrency(row.totalDiscount)}
-                  </td>
-                  <td className="py-3 px-4 text-right text-gray-700">
-                    {formatNumber(row.transactions)}
-                  </td>
-                  <td className="py-3 px-4 text-right text-gray-700">
-                    {formatCurrency(row.avgDiscount)}
-                  </td>
-                  <td className="py-3 px-4 text-right">
-                    <Badge variant="outline" className="text-xs">
-                      {row.discountRate.toFixed(1)}%
-                    </Badge>
-                  </td>
-                  <td className="py-3 px-4 text-center">
-                    {row.growth !== null ? (
-                      <div className="flex items-center justify-center gap-1">
-                        {getGrowthIcon(row.growth)}
-                        <span className={`text-sm font-medium ${getGrowthColor(row.growth)}`}>
-                          {Math.abs(row.growth).toFixed(1)}%
-                        </span>
-                      </div>
-                    ) : (
-                      <span className="text-gray-400 text-sm">-</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <ModernDataTable
+          data={processedData}
+          columns={columns}
+          showFooter={true}
+          footerData={{
+            month: 'TOTAL',
+            transactions: totals.transactions,
+            totalDiscount: totals.totalDiscount,
+            avgDiscountAmount: totals.transactions > 0 ? totals.totalDiscount / totals.transactions : 0,
+            discountRate: totals.totalRevenue > 0 ? (totals.totalDiscount / (totals.totalRevenue + totals.totalDiscount)) * 100 : 0,
+            avgTransactionValue: totals.transactions > 0 ? totals.totalRevenue / totals.transactions : 0,
+            avgUnitValue: totals.transactions > 0 ? totals.totalRevenue / totals.transactions : 0,
+            totalRevenue: totals.totalRevenue,
+            uniqueCustomers: totals.uniqueCustomers,
+            discountChange: 0,
+            transactionChange: 0,
+            revenueChange: 0
+          }}
+          maxHeight="500px"
+          stickyHeader={true}
+        />
         
-        {sortedData.length === 0 && (
-          <div className="text-center py-8 text-gray-500">
-            No discount data available for month-on-month analysis
+        <div className="mt-4 p-4 bg-slate-50 rounded-lg">
+          <h4 className="font-semibold text-slate-800 mb-2">Summary</h4>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div>
+              <span className="text-slate-600">Total Discount Impact:</span>
+              <div className="font-semibold text-red-600">{formatCurrency(totals.totalDiscount)}</div>
+            </div>
+            <div>
+              <span className="text-slate-600">Total Transactions:</span>
+              <div className="font-semibold">{formatNumber(totals.transactions)}</div>
+            </div>
+            <div>
+              <span className="text-slate-600">Revenue Generated:</span>
+              <div className="font-semibold text-green-600">{formatCurrency(totals.totalRevenue)}</div>
+            </div>
+            <div>
+              <span className="text-slate-600">Customers Affected:</span>
+              <div className="font-semibold">{formatNumber(totals.uniqueCustomers)}</div>
+            </div>
           </div>
-        )}
+        </div>
       </CardContent>
     </Card>
   );

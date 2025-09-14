@@ -1,9 +1,8 @@
 
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { MapPin, Building2 } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { MapPin } from 'lucide-react';
 import { useGlobalFilters } from '@/contexts/GlobalFiltersContext';
 
 interface ExecutiveLocationSelectorProps {
@@ -12,74 +11,50 @@ interface ExecutiveLocationSelectorProps {
 
 export const ExecutiveLocationSelector: React.FC<ExecutiveLocationSelectorProps> = ({ locations }) => {
   const { filters, updateFilters } = useGlobalFilters();
+
   const selectedLocation = Array.isArray(filters.location) ? filters.location[0] : filters.location;
 
-  const handleLocationChange = (location: string) => {
-    if (location === 'all') {
-      updateFilters({ location: [] });
-    } else {
-      updateFilters({ location: [location] });
+  // Standardize location names to match sales data
+  const standardizedLocations = locations.map(location => {
+    if (location.includes('Kemps Corner') || location.includes('Kemp\'s Corner')) {
+      return 'Kwality House, Kemps Corner';
     }
-  };
+    if (location.includes('Bandra')) {
+      return 'Bandra West';
+    }
+    if (location.includes('Juhu')) {
+      return 'Juhu';
+    }
+    return location;
+  });
+
+  // Remove duplicates
+  const uniqueLocations = [...new Set(standardizedLocations)];
 
   return (
-    <Card className="bg-gradient-to-br from-white via-blue-50/30 to-indigo-50/20 border-0 shadow-xl">
-      <CardContent className="p-6">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-xl flex items-center justify-center">
-            <MapPin className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <h3 className="text-xl font-bold bg-gradient-to-r from-blue-700 to-indigo-700 bg-clip-text text-transparent">
-              Location Filter
-            </h3>
-            <p className="text-sm text-slate-600">Select a location to filter all data</p>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap gap-3">
-          <Button
-            variant={!selectedLocation ? "default" : "outline"}
-            onClick={() => handleLocationChange('all')}
-            className={`
-              transition-all duration-300 hover:scale-105 px-6 py-3 rounded-full
-              ${!selectedLocation 
-                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg' 
-                : 'bg-white hover:bg-blue-50 border-blue-200 text-blue-700'
-              }
-            `}
+    <Card className="bg-white/90 backdrop-blur-sm shadow-lg border-0">
+      <CardContent className="p-4">
+        <div className="flex items-center gap-3">
+          <MapPin className="w-5 h-5 text-blue-600" />
+          <label className="text-sm font-medium text-gray-700">Filter by Location:</label>
+          <Select
+            value={selectedLocation || 'all'}
+            onValueChange={(value) => 
+              updateFilters({ location: value === 'all' ? [] : [value] })
+            }
           >
-            <Building2 className="w-4 h-4 mr-2" />
-            All Locations
-            {!selectedLocation && (
-              <Badge className="ml-2 bg-white/20 text-white border-white/30">
-                Active
-              </Badge>
-            )}
-          </Button>
-
-          {locations.map((location) => (
-            <Button
-              key={location}
-              variant={selectedLocation === location ? "default" : "outline"}
-              onClick={() => handleLocationChange(location)}
-              className={`
-                transition-all duration-300 hover:scale-105 px-6 py-3 rounded-full
-                ${selectedLocation === location 
-                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg' 
-                  : 'bg-white hover:bg-blue-50 border-blue-200 text-blue-700'
-                }
-              `}
-            >
-              <Building2 className="w-4 h-4 mr-2" />
-              {location}
-              {selectedLocation === location && (
-                <Badge className="ml-2 bg-white/20 text-white border-white/30">
-                  Active
-                </Badge>
-              )}
-            </Button>
-          ))}
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="Select location..." />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Locations</SelectItem>
+              {uniqueLocations.map(location => (
+                <SelectItem key={location} value={location}>
+                  {location}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </CardContent>
     </Card>

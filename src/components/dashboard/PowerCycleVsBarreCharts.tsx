@@ -293,7 +293,7 @@ export const PowerCycleVsBarreCharts: React.FC<PowerCycleVsBarreChartsProps> = m
         };
       }
       
-      months[monthKey].powerCycle += session.checkedIn;
+      months[monthKey].powerCycle += session.checkedInCount;
       months[monthKey].powerCycleCapacity += session.capacity;
       months[monthKey].powerCycleCount += 1;
     });
@@ -315,7 +315,7 @@ export const PowerCycleVsBarreCharts: React.FC<PowerCycleVsBarreChartsProps> = m
         };
       }
       
-      months[monthKey].barre += session.checkedIn;
+      months[monthKey].barre += session.checkedInCount;
       months[monthKey].barreCapacity += session.capacity;
       months[monthKey].barreCount += 1;
     });

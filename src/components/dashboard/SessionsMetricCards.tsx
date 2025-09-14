@@ -1,3 +1,4 @@
+
 import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -11,8 +12,17 @@ interface SessionsMetricCardsProps {
 
 export const SessionsMetricCards: React.FC<SessionsMetricCardsProps> = ({ data }) => {
   const metrics = useMemo(() => {
-    // Use the already filtered data directly - no additional filtering needed
-    const filteredData = data;
+    // Filter out unwanted sessions
+    const filteredData = data.filter(session => {
+      const className = session.cleanedClass || '';
+      const excludeKeywords = ['Hosted', 'P57', 'X'];
+      
+      const hasExcludedKeyword = excludeKeywords.some(keyword => 
+        className.toLowerCase().includes(keyword.toLowerCase())
+      );
+      
+      return !hasExcludedKeyword;
+    });
 
     const totalSessions = filteredData.length;
     const totalCapacity = filteredData.reduce((sum, session) => sum + session.capacity, 0);
@@ -32,7 +42,7 @@ export const SessionsMetricCards: React.FC<SessionsMetricCardsProps> = ({ data }
     const membershipUtilization = totalCheckedIn > 0 ? (totalMemberships / totalCheckedIn) * 100 : 0;
     const packageUtilization = totalCheckedIn > 0 ? (totalPackages / totalCheckedIn) * 100 : 0;
     
-    // Popular time slots - using filtered data
+    // Popular time slots
     const timeSlotCounts = filteredData.reduce((acc, session) => {
       acc[session.time] = (acc[session.time] || 0) + session.checkedInCount;
       return acc;
@@ -165,12 +175,9 @@ export const SessionsMetricCards: React.FC<SessionsMetricCardsProps> = ({ data }
         {metrics.map((metric, index) => (
           <Tooltip key={metric.title}>
             <TooltipTrigger asChild>
-              <Card 
-                className="bg-white/90 backdrop-blur-sm shadow-lg border-0 hover:shadow-xl transition-all duration-300 cursor-pointer group hover:scale-105"
-                data-metric-card
-              >
+              <Card className="bg-white/90 backdrop-blur-sm shadow-lg border-0 hover:shadow-xl transition-all duration-300 cursor-pointer group hover:scale-105">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-                  <CardTitle className="text-sm font-medium text-gray-700 group-hover:text-gray-900 transition-colors" data-metric-label>
+                  <CardTitle className="text-sm font-medium text-gray-700 group-hover:text-gray-900 transition-colors">
                     {metric.title}
                   </CardTitle>
                   <div className={`p-3 rounded-xl ${getBgColor(metric.color)} group-hover:scale-110 transition-transform`}>
@@ -178,7 +185,7 @@ export const SessionsMetricCards: React.FC<SessionsMetricCardsProps> = ({ data }
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <div className="text-3xl font-bold text-gray-900 group-hover:text-gray-800 transition-colors" data-metric-value>
+                  <div className="text-3xl font-bold text-gray-900 group-hover:text-gray-800 transition-colors">
                     {metric.value}
                   </div>
                   {metric.change !== 0 && (
@@ -194,7 +201,7 @@ export const SessionsMetricCards: React.FC<SessionsMetricCardsProps> = ({ data }
                       <span className="ml-2 text-gray-500">vs last period</span>
                     </div>
                   )}
-                  <p className="text-sm text-gray-600 group-hover:text-gray-700 transition-colors" data-metric-description>
+                  <p className="text-sm text-gray-600 group-hover:text-gray-700 transition-colors">
                     {metric.description}
                   </p>
                 </CardContent>
